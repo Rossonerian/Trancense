@@ -7,12 +7,12 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getSafeInternalPath } from "@/lib/app-origin";
 import { GoogleOAuthButton } from "./google-oauth-button";
 
-export function LoginForm({ demoMode = false }: { demoMode?: boolean }) {
+export function LoginForm({ demoMode = false, configurationMessage }: { demoMode?: boolean; configurationMessage?: string }) {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState(params.get("error") === "configuration" ? "Supabase authentication is not configured. Set the documented server variables or use DATA_MODE=demo locally." : "");
+  const [error, setError] = useState(params.get("error") === "configuration" ? configurationMessage ?? "Supabase authentication is not configured for this deployment." : configurationMessage ?? "");
   const confirmed = params.get("confirmed") === "1";
   const [loading, setLoading] = useState(false);
 

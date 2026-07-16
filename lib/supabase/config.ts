@@ -15,7 +15,7 @@ export type ResolvedSupabaseConfig = {
 
 export const supabaseEnvironmentVariableNames = {
   url: ["NEXT_PUBLIC_STORAGE_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"],
-  publishableKey: ["NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY", "NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY"],
+  publishableKey: ["NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY", "NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
   serviceRoleKey: ["STORAGE_SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
 } as const;
 
@@ -49,7 +49,7 @@ export function resolveSupabaseConfig(input: SupabaseConfigInput): ResolvedSupab
 export function getSupabasePublicConfig(): ResolvedSupabaseConfig {
   return resolveSupabaseConfig({
     url: process.env.NEXT_PUBLIC_STORAGE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-    publishableKey: process.env.NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    publishableKey: process.env.NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   });
 }
 

@@ -7,7 +7,7 @@ The product is decision-support software. It does not provide BEE certification,
 ## Architecture
 
 - Next.js App Router 16.2.10, React 19, strict TypeScript, and the existing responsive UI.
-- `DATA_MODE=demo` uses the explicit deterministic seed in [`lib/demo-data.ts`](./lib/demo-data.ts) for local product demos and calculation fixtures only.
+- `DATA_MODE=demo` uses the explicit deterministic seed in [`lib/demo-data.ts`](./lib/demo-data.ts) for local product demos and calculation fixtures only. Production never treats an omitted or `demo` value as a demo workspace.
 - `DATA_MODE=supabase` requires an authenticated Supabase session and active organization membership. It never silently falls back to demo data. Empty organizations receive setup/empty states instead of fabricated metrics.
 - The root route is server-gated: unauthenticated visitors go to `/login`, authenticated users without a membership go to `/onboarding`, and members go to `/overview`. [`lib/supabase/client.ts`](./lib/supabase/client.ts) and [`lib/supabase/server.ts`](./lib/supabase/server.ts) use `@supabase/ssr` cookies; [`proxy.ts`](./proxy.ts) refreshes sessions with verified claims before protected routes execute.
 - [`lib/data-access.ts`](./lib/data-access.ts) is the tenant-scoped read adapter. Route handlers under [`app/api`](./app/api) validate input with Zod, check membership and roles, write records, and append audit events.
@@ -59,7 +59,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 GEMINI_MODEL=
 ```
 
-`DATA_MODE=supabase` is the production setting. `DATA_MODE=demo` is an explicit local development mode only. The resolver prefers the Vercel integration names `NEXT_PUBLIC_STORAGE_SUPABASE_URL`, `NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY`, and `STORAGE_SUPABASE_SERVICE_ROLE_KEY`; the original `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` names remain supported as local aliases. Only the `NEXT_PUBLIC_*` URL and publishable/anon key are browser-safe. The service-role key is server-only and is never imported by browser code. The URL must be the Supabase project root, such as `https://YOUR_PROJECT_REF.supabase.co`; `/rest/v1`, `/auth/v1`, `/storage/v1`, dashboard, project, query-string, and malformed URLs are rejected. The Supabase SDK constructs `/auth/v1/signup` itself, so the application never appends `/auth/v1` to the configured URL. `DATABASE_URL` should be a transaction-pooler connection for serverless tooling and `DIRECT_URL` the direct connection for migrations/admin work. The current application uses the Supabase Data API, so neither URL is read by the browser.
+`DATA_MODE=supabase` is required in Vercel Production. `DATA_MODE=demo` is an explicit local-development setting only; the production runtime forces Supabase mode even if `DATA_MODE` is omitted or incorrectly set to `demo`. After changing the Vercel variable, create a new deployment. The resolver prefers the Vercel integration names `NEXT_PUBLIC_STORAGE_SUPABASE_URL`, `NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY`, and `STORAGE_SUPABASE_SERVICE_ROLE_KEY`; the original `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` names remain supported as local aliases. Only the `NEXT_PUBLIC_*` URL and publishable/anon key are browser-safe. The service-role key is server-only and is never imported by browser code. The URL must be the Supabase project root, such as `https://YOUR_PROJECT_REF.supabase.co`; `/rest/v1`, `/auth/v1`, `/storage/v1`, dashboard, project, query-string, and malformed URLs are rejected. The Supabase SDK constructs `/auth/v1/signup` itself, so the application never appends `/auth/v1` to the configured URL. `DATABASE_URL` should be a transaction-pooler connection for serverless tooling and `DIRECT_URL` the direct connection for migrations/admin work. The current application uses the Supabase Data API, so neither URL is read by the browser.
 
 `NEXT_PUBLIC_APP_URL` is the trusted application origin used in Supabase email links. Set it to `https://trancense.vercel.app` in Vercel Production and to `http://localhost:3000` for local development. The resolver accepts the production origin, local development origin, and explicitly configured Vercel preview origins; it rejects arbitrary external hosts, query strings, fragments, and path-bearing origins. If the variable is absent in a server request, the resolver can use the current request origin only when it is trusted, and production never falls back to localhost.
 
@@ -195,7 +195,7 @@ Executed in this repository during the current implementation:
 ```text
 npm run typecheck  PASS
 npm run lint       PASS
-npm test           PASS — 10 files, 25 tests
+npm test           PASS — 11 files, 28 tests
 npm run build      PASS — Next.js 16.2.10 production build; all app/API routes generated
 ```
 

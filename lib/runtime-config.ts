@@ -5,7 +5,9 @@ export type AIProvider = "auto" | "demo" | "openrouter" | "groq" | "gemini";
 import { getSupabaseServerConfig } from "./supabase/server-config";
 
 export function getDataMode(): DataMode {
-  return process.env.DATA_MODE === "supabase" ? "supabase" : "demo";
+  const explicitlyDemo = process.env.DATA_MODE === "demo";
+  if (explicitlyDemo && process.env.NODE_ENV !== "production") return "demo";
+  return "supabase";
 }
 
 export function getAIProvider(): AIProvider {

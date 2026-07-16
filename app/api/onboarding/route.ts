@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthContext } from "@/lib/auth";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const onboardingSchema = z.object({
   organizationName: z.string().trim().min(2).max(160),
@@ -35,8 +34,8 @@ export async function POST(request: Request) {
     }
     const { data: site, error: siteError } = await admin.from("sites").upsert({ organization_id: organizationId, name: parsed.data.siteName, region: parsed.data.region, timezone: "Asia/Kolkata" }, { onConflict: "organization_id,name" }).select("id,name").single();
     if (siteError) throw siteError;
-    const supabase = await getSupabaseServerClient();
-    const { error: profileError } = await supabase.from("profiles").update({ full_name: context.user.user_metadata?.full_name ?? "", job_role: parsed.data.jobRole, country: parsed.data.country, phone: parsed.data.phone || null, onboarding_completed: true }).eq("id", context.user.id);
+    const profileName = context.profile?.full_name?.trim() || String(context.user.user_metadata?.full_name ?? context.user.user_metadata?.name ?? "").trim();
+    const { error: profileError } = await admin.from("profiles").upsert({ id: context.user.id, full_name: profileName, job_role: parsed.data.jobRole, country: parsed.data.country, phone: parsed.data.phone || null, onboarding_completed: true }, { onConflict: "id" });
     if (profileError) throw profileError;
     await admin.from("audit_events").insert({ organization_id: organizationId, event_type: "onboarding_completed", actor_name: context.user.email ?? context.user.id, details: { site_id: site.id } });
     return NextResponse.json({ organizationId, site });

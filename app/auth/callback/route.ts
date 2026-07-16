@@ -39,10 +39,14 @@ export async function GET(request: NextRequest) {
       if (invited) await admin.from("organization_memberships").update({ status: "active" }).eq("id", invited.id);
     }
 
-    const { data: profile } = await supabase.from("profiles").select("onboarding_completed").eq("id", user.id).maybeSingle();
+    const [{ data: profile, error: profileError }, { data: membership, error: membershipError }] = await Promise.all([
+      supabase.from("profiles").select("onboarding_completed").eq("id", user.id).maybeSingle(),
+      supabase.from("organization_memberships").select("id").eq("user_id", user.id).eq("status", "active").limit(1).maybeSingle(),
+    ]);
+    if (profileError || membershipError) return recovery("exchange_failed");
     const requestedNext = getSafeInternalPath(request.nextUrl.searchParams.get("next"), "");
     const safeNext = requestedNext === "/login" || requestedNext === "/overview" || requestedNext === "/onboarding" ? requestedNext : "";
-    return redirect(profile?.onboarding_completed ? safeNext || "/overview?confirmed=1" : "/onboarding");
+    return redirect(profile?.onboarding_completed && membership ? safeNext || "/overview?confirmed=1" : "/onboarding");
   } catch {
     return recovery("exchange_failed");
   }

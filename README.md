@@ -115,6 +115,14 @@ After changing `NEXT_PUBLIC_APP_URL` or any Vercel environment variable, redeplo
 
 Google OAuth is enabled in Supabase Auth → Providers. The login and signup buttons use the trusted application origin and `/auth/callback`; Google client credentials remain in Supabase, never in the browser. Configure the callback URL in Supabase and use a fresh auth session for each test.
 
+Production Google OAuth troubleshooting:
+
+- `GET /api/health` reports the non-secret `supabaseUrlHost`. Compare that host with the Supabase project where Google was enabled and saved. A project mismatch can produce `Unsupported provider: provider is not enabled` even when another Supabase project shows Google enabled.
+- In the matching Supabase project, enable and save Auth → Providers → Google. Add `https://trancense.vercel.app/auth/callback` and `https://trancense.vercel.app/reset-password` under Auth → URL Configuration. Local testing uses `http://localhost:3000/auth/callback` and `http://localhost:3000/reset-password`.
+- In Google Cloud Console, keep the Google client ID/secret in Supabase Auth. Add the Supabase provider callback `https://<SUPABASE_PROJECT_REF>.supabase.co/auth/v1/callback` to the OAuth client’s Authorized redirect URIs; do not add the Google secret or raw authorize URL to Trancense.
+- After changing Vercel variables or Supabase Auth settings, deploy/retry with a fresh browser session. Confirmation and OAuth authorization codes are one-time use.
+- `redirect_uri_mismatch` means the Google Cloud callback or Supabase application redirect configuration is wrong. A localhost callback in Production means the deployed app origin variable or deployment is stale. A demo screen in Production means the deployment must be rebuilt from the current commit; the production runtime now forces Supabase mode.
+
 ## Real tester workflows
 
 With `DATA_MODE=supabase` and a configured account:
@@ -195,7 +203,7 @@ Executed in this repository during the current implementation:
 ```text
 npm run typecheck  PASS
 npm run lint       PASS
-npm test           PASS — 11 files, 28 tests
+npm test           PASS — 12 files, 32 tests
 npm run build      PASS — Next.js 16.2.10 production build; all app/API routes generated
 ```
 

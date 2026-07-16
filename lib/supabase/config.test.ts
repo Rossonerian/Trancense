@@ -3,6 +3,12 @@ import { createClient } from "@supabase/supabase-js";
 import { resolveSupabaseConfig } from "./config";
 
 describe("Supabase configuration resolver", () => {
+  it("documents the Supabase Connect aliases used by the local environment", async () => {
+    const { supabaseEnvironmentVariableNames } = await import("./config");
+    expect(supabaseEnvironmentVariableNames.publishableKey).toContain("SUPABASE_PUBLISHABLE_KEY");
+    expect(supabaseEnvironmentVariableNames.serviceRoleKey).toContain("SUPABASE_SECRET_KEY");
+  });
+
   it("accepts a project root and normalizes harmless trailing slashes", () => {
     const config = resolveSupabaseConfig({ url: "https://demo-project.supabase.co///", publishableKey: "public-key", serviceRoleKey: "server-key" });
     expect(config.url).toBe("https://demo-project.supabase.co");

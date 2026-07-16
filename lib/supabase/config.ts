@@ -15,8 +15,8 @@ export type ResolvedSupabaseConfig = {
 
 export const supabaseEnvironmentVariableNames = {
   url: ["NEXT_PUBLIC_STORAGE_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL"],
-  publishableKey: ["NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY", "NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"],
-  serviceRoleKey: ["STORAGE_SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
+  publishableKey: ["NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY", "NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "SUPABASE_PUBLISHABLE_KEY"],
+  serviceRoleKey: ["STORAGE_SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SECRET_KEY", "SUPABASE_SERVICE_ROLE_KEY"],
 } as const;
 
 function normalizeSupabaseUrl(value: string | undefined): { url: string | null; host: string | null; invalid: boolean } {
@@ -49,10 +49,10 @@ export function resolveSupabaseConfig(input: SupabaseConfigInput): ResolvedSupab
 export function getSupabasePublicConfig(): ResolvedSupabaseConfig {
   return resolveSupabaseConfig({
     url: process.env.NEXT_PUBLIC_STORAGE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL,
-    publishableKey: process.env.NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    publishableKey: process.env.NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY,
   });
 }
 
 export function getSupabaseServiceRoleKey(): string | null {
-  return process.env.STORAGE_SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null;
+  return process.env.STORAGE_SUPABASE_SERVICE_ROLE_KEY?.trim() || process.env.SUPABASE_SECRET_KEY?.trim() || process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() || null;
 }

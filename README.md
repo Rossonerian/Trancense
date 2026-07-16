@@ -144,6 +144,26 @@ Production/Preview AI variables can remain `AI_PROVIDER=demo` for the most relia
 - Refresh after the Supabase seed and confirm `/overview` and `/assets` still render.
 - Keep `AI_PROVIDER=demo` if provider rate limits would risk the pitch; the deterministic assistant is the reliable fallback.
 
+## Vercel Analytics and Speed Insights
+
+The root layout renders the official `@vercel/analytics/next` `Analytics` component and `@vercel/speed-insights/next` `SpeedInsights` component exactly once. They collect aggregate page-view and real-user performance signals across the existing routes; Trancense does not add custom tracking of energy-audit content, credentials, or personally identifiable information. No environment variables or secrets are required for these integrations.
+
+Web Analytics is viewed in the Vercel project dashboard under **Analytics**. Speed Insights is viewed under **Speed Insights**. Data begins collecting after the updated application is deployed and the deployed site is visited, and may not appear immediately on a new deployment. Select the correct environment, normally **Production**, before interpreting the results.
+
+Beginner-friendly activation flow:
+
+1. Deploy the updated project to Vercel.
+2. Open the correct Vercel project.
+3. Open **Analytics** and enable Web Analytics if Vercel requests activation.
+4. Open **Speed Insights** and complete any activation step shown by Vercel.
+5. Select the correct environment, normally **Production**.
+6. Open the deployed production URL.
+7. Navigate through several routes: overview, audit, analytics, ECM, solar, assistant, and reports.
+8. Wait for Vercel to process the initial data.
+9. Return to the **Analytics** and **Speed Insights** tabs.
+
+The official integrations and dashboard behavior are documented in the [Web Analytics quickstart](https://vercel.com/docs/analytics/quickstart), [Analytics package guide](https://vercel.com/docs/analytics/package), [Speed Insights quickstart](https://vercel.com/docs/speed-insights/quickstart), and [Speed Insights overview](https://vercel.com/docs/speed-insights). Vercel plan availability, reporting windows, and usage policies can change; check the dashboard and current Vercel documentation for the active project terms.
+
 ## Verification
 
 ```bash

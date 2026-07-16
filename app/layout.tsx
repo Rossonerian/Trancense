@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AppShell } from "@/components/app-shell";
 import { getHealthStatus } from "@/lib/health";
 import "./globals.css";
@@ -10,5 +12,5 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const health = await getHealthStatus();
-  return <html lang="en"><body><AppShell dataStatus={{ label: health.dataLabel, detail: health.status === "ok" ? health.dataLabel === "Supabase Data" ? "Persistent workspace" : "Deterministic seeded workspace" : "Supabase unavailable · using fallback" }}>{children}</AppShell></body></html>;
+  return <html lang="en"><body><AppShell dataStatus={{ label: health.dataLabel, detail: health.status === "ok" ? health.dataLabel === "Supabase Data" ? "Persistent workspace" : "Deterministic seeded workspace" : "Supabase unavailable · using fallback" }}>{children}</AppShell><Analytics /><SpeedInsights /></body></html>;
 }

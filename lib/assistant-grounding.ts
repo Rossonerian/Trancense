@@ -18,7 +18,7 @@ export function isUnsafeAssistantRequest(prompt: string): boolean {
 
 export function deterministicAssistantResponse(prompt: string, snapshot: WorkspaceSnapshot): string {
   if (isUnsafeAssistantRequest(prompt)) return "I can’t fabricate evidence, expose another organization’s data, or provide statutory, legal, certification, or automatic-control conclusions. I can explain authorized calculations and identify the evidence still needed.";
-  if (snapshot.source === "supabase" && !snapshot.monthly.length && !snapshot.ecms.length && !snapshot.evidence.length) return "There are no authorized audit records in this organization yet. Create a site, audit, and evidence records before asking for an engineering summary. I will not invent missing values.";
+  if (snapshot.source === "supabase" && !snapshot.monthly.length && !snapshot.ecms.length && !snapshot.evidence.length) return "This workspace does not yet contain enough validated energy evidence to answer that question. Add utility bills, meter readings, or asset data first. I will not invent missing values.";
   const lower = prompt.toLowerCase();
   const electricity = snapshot.monthly.reduce((sum, row) => sum + row.electricity, 0);
   const allocated = snapshot.endUses.reduce((sum, row) => sum + row.value, 0);

@@ -3,9 +3,11 @@ import { ArrowRight, Building2, CircleAlert, Gauge } from "lucide-react";
 import { getWorkspaceSnapshot } from "@/lib/data-access";
 import { CardHeader, ConfidencePill, PageHeader, StatusPill } from "@/components/ui";
 import { WorkspaceEmptyState } from "@/components/workspace-empty-state";
+import { WorkspaceDataError } from "@/components/workspace-data-error";
 
 export default async function AssetsPage() {
   const snapshot = await getWorkspaceSnapshot();
+  if (snapshot.configurationError) return <WorkspaceDataError message={snapshot.configurationError} />;
   const visibleAssets = snapshot.assets;
   if (snapshot.source === "supabase" && !visibleAssets.length) return <div className="content"><PageHeader eyebrow="Operations / asset hierarchy" title="Know what is using the energy." description="Add real equipment records to build the organization-to-meter hierarchy." actions={<Link className="btn primary" href="/data#upload"><Building2 className="svg-icon" /> Import asset CSV</Link>} /><WorkspaceEmptyState title="No assets yet" description="Import your first asset register or add equipment records from an authorized workspace role. No health or energy metrics are shown until records exist." href="/data#upload" action="Import asset CSV" /></div>;
   const healthy = visibleAssets.filter((asset) => asset.status === "Operating").length;

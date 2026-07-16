@@ -9,7 +9,7 @@ The product is decision-support software. It does not provide BEE certification,
 - Next.js App Router 16.2.10, React 19, strict TypeScript, and the existing responsive UI.
 - `DATA_MODE=demo` uses the explicit deterministic seed in [`lib/demo-data.ts`](./lib/demo-data.ts) for local product demos and calculation fixtures only.
 - `DATA_MODE=supabase` requires an authenticated Supabase session and active organization membership. It never silently falls back to demo data. Empty organizations receive setup/empty states instead of fabricated metrics.
-- [`lib/supabase/client.ts`](./lib/supabase/client.ts) and [`lib/supabase/server.ts`](./lib/supabase/server.ts) use `@supabase/ssr` cookies. [`proxy.ts`](./proxy.ts) refreshes sessions with verified claims before protected routes execute.
+- The root route is server-gated: unauthenticated visitors go to `/login`, authenticated users without a membership go to `/onboarding`, and members go to `/overview`. [`lib/supabase/client.ts`](./lib/supabase/client.ts) and [`lib/supabase/server.ts`](./lib/supabase/server.ts) use `@supabase/ssr` cookies; [`proxy.ts`](./proxy.ts) refreshes sessions with verified claims before protected routes execute.
 - [`lib/data-access.ts`](./lib/data-access.ts) is the tenant-scoped read adapter. Route handlers under [`app/api`](./app/api) validate input with Zod, check membership and roles, write records, and append audit events.
 - PostgreSQL schema and RLS are versioned under [`supabase/migrations`](./supabase/migrations). The service-role client is limited to trusted seed, onboarding, and invitation operations and is never imported by browser code.
 - Authoritative numerical outputs remain in [`lib/calculations.ts`](./lib/calculations.ts). The assistant can explain authorized records but cannot create energy, financial, carbon, tariff, compliance, or savings values.
@@ -29,7 +29,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open <http://localhost:3000/overview>. Demo mode requires no account or database and shows the explicit `Demo Data` status. Persistent mode requires the Supabase setup below and shows `Supabase Data` only after the authenticated database path is healthy.
+Open <http://localhost:3000/>. In `DATA_MODE=demo`, the login entry point offers an explicit demo workspace and shows `Demo Data`. In `DATA_MODE=supabase`, the root route requires authentication and never loads seeded data.
 
 ## Environment variables
 
@@ -98,7 +98,7 @@ GEMINI_MODEL=
 
 ### Auth and onboarding
 
-Signup collects full name, organization, role, country, and optional phone. A database trigger creates the profile, a personal organization, and an `Executive/Viewer` membership. Onboarding updates the organization and creates the first site. Login, logout, persistent secure-cookie sessions, email confirmation, resend through Supabase Auth, password reset, callback handling, protected routes, loading states, and validation/error states are implemented.
+Signup collects full name, organization, role, country, and optional phone. The database trigger creates only the profile; onboarding creates the organization, an `Executive/Viewer` membership, and the first site from the user’s submitted values. Login, logout, persistent secure-cookie sessions, email confirmation, Google OAuth, resend through Supabase Auth, password reset, callback handling, protected routes, loading states, and validation/error states are implemented.
 
 The `/settings` administration panel is visible only to an Admin membership. Admins can invite testers, change roles, suspend/remove memberships, and inspect tenant audit events. Reviewers can approve technical outputs; viewers can read permitted records but cannot mutate them. These checks are repeated in route handlers and RLS, not just in the UI.
 
@@ -113,6 +113,8 @@ Confirmation and recovery behavior:
 
 After changing `NEXT_PUBLIC_APP_URL` or any Vercel environment variable, redeploy the application. Existing deployments do not receive changed environment values automatically. Test signup, email confirmation, login, logout, resend confirmation, and password reset with a newly generated link; an old or already-used link cannot be reused.
 
+Google OAuth is enabled in Supabase Auth → Providers. The login and signup buttons use the trusted application origin and `/auth/callback`; Google client credentials remain in Supabase, never in the browser. Configure the callback URL in Supabase and use a fresh auth session for each test.
+
 ## Real tester workflows
 
 With `DATA_MODE=supabase` and a configured account:
@@ -125,6 +127,14 @@ With `DATA_MODE=supabase` and a configured account:
 6. Invite a viewer and a reviewer from Settings. Test that the viewer can read but cannot create, edit, or approve technical outputs.
 
 If there are no records, the UI shows actions such as **Create your first site**, **Create your first audit**, **Import utility data**, and **No solar scenario yet**. It does not display seeded totals in Supabase mode.
+
+To remove only the known seeded demo tenant, review the printed target and counts first, then run this guarded command against the intended project:
+
+```bash
+PURGE_DEMO_DATA=true npm run db:remove-demo
+```
+
+Without the explicit flag the command refuses to run. It targets only organizations marked `is_demo=true` and the known `shakti-precision` demo slug, cascades their tenant records, preserves Supabase Auth users, and never deletes unrelated organizations. Do not run it against production until the target organization and counts have been manually verified.
 
 ## Evidence and Storage
 
@@ -146,7 +156,7 @@ Run `npm run ai:verify-models` before a pitch because free availability, expiry,
 
 Import the repository into Vercel with the **Next.js** framework preset, repository root, install command `npm ci`, build command `npm run build`, and the default output directory. No filesystem persistence is required.
 
-Set variables separately for **Preview** and **Production**. Production must use `DATA_MODE=supabase`; use a separate Supabase project or tightly controlled test tenant for Preview when possible. Add the resolved Vercel integration names—or the supported local aliases—to both environments as needed. Add AI variables only as server-side Vercel environment variables. Redeploy after changing environment variables; changing Vercel environment variables does not update an existing deployment. Confirm the deployed `/api/health` response and the visible `Supabase Data` label before inviting testers.
+Set variables separately for **Preview** and **Production**. Production must use `DATA_MODE=supabase` and `NEXT_PUBLIC_APP_URL=https://trancense.vercel.app`; use a separate Supabase project or tightly controlled test tenant for Preview when possible. Add the resolved Vercel integration names—or the supported local aliases—to both environments as needed. Add AI variables only as server-side Vercel environment variables. Redeploy after changing environment variables; changing Vercel environment variables does not update an existing deployment. Confirm the deployed `/api/health` response and the visible `Supabase Data` label after authentication before inviting testers.
 
 Pitch checklist:
 
@@ -185,7 +195,7 @@ Executed in this repository during the current implementation:
 ```text
 npm run typecheck  PASS
 npm run lint       PASS
-npm test           PASS — 8 files, 22 tests
+npm test           PASS — 10 files, 25 tests
 npm run build      PASS — Next.js 16.2.10 production build; all app/API routes generated
 ```
 

@@ -1,33 +1,37 @@
 import "server-only";
 
-import { assets as demoAssets, audit as demoAudit, auditEvents as demoAuditEvents, company, ecms as demoEcms, emissions as demoEmissions, endUses as demoEndUses, evidence as demoEvidence, monthly as demoMonthly, overviewMetrics } from "./demo-data";
 import { provenance, scopeEmissions } from "./calculations";
 import type { Asset, ECM, MonthlyPoint } from "./types";
 import { getDataMode, isSupabaseConfigured } from "./runtime-config";
 import { getAuthContext } from "./auth";
 import { getSupabaseServerClient } from "./supabase/server";
 
+type DemoData = typeof import("./demo-data");
+
 export type WorkspaceSnapshot = {
   source: "demo" | "supabase";
-  company: typeof company | null;
-  audit: typeof demoAudit | null;
+  company: DemoData["company"] | null;
+  audit: DemoData["audit"] | null;
   monthly: MonthlyPoint[];
   assets: Asset[];
   ecms: ECM[];
-  evidence: typeof demoEvidence;
+  evidence: DemoData["evidence"];
   endUses: Array<{ name: string; value: number; color: string }>;
-  overviewMetrics: typeof overviewMetrics | null;
+  overviewMetrics: DemoData["overviewMetrics"] | null;
   solarScenario: { code: string; name: string; inputs: Record<string, number>; outputs: Record<string, number>; assumptions: string[] } | null;
   emissions: { scope1: number; scope2: number };
   organizationId?: string;
   siteId?: string;
-  auditEvents: typeof demoAuditEvents;
+  auditEvents: DemoData["auditEvents"];
   configurationError?: string;
 };
 
-const demoSnapshot: WorkspaceSnapshot = { source: "demo", company, audit: demoAudit, monthly: demoMonthly, assets: demoAssets, ecms: demoEcms, evidence: demoEvidence, endUses: demoEndUses, overviewMetrics, solarScenario: { code: "SCENARIO-01", name: "Rooftop PV · 180 kWp planning scenario", inputs: { roofArea: 2600, exclusions: 380, moduleW: 540 }, outputs: { capacityKw: 461 }, assumptions: ["Planning values only", "Structural and DISCOM validation pending"] }, emissions: demoEmissions, auditEvents: demoAuditEvents };
+const emptySnapshot: WorkspaceSnapshot = { source: "supabase", company: null, audit: null, monthly: [], assets: [], ecms: [], evidence: [], endUses: [], overviewMetrics: null, solarScenario: null, emissions: { scope1: 0, scope2: 0 }, auditEvents: [] };
 
-const emptySnapshot: WorkspaceSnapshot = { source: "supabase", company: null, audit: null, monthly: [], assets: [], ecms: [], evidence: [], endUses: [], overviewMetrics: null, solarScenario: null, emissions: { scope1: 0, scope2: 0 }, auditEvents: [], configurationError: "Supabase data is not configured or the organization has no records." };
+async function getDemoSnapshot(): Promise<WorkspaceSnapshot> {
+  const { assets, audit, auditEvents, company, ecms, emissions, endUses, evidence, monthly, overviewMetrics } = await import("./demo-data");
+  return { source: "demo", company, audit, monthly, assets, ecms, evidence, endUses, overviewMetrics, solarScenario: { code: "SCENARIO-01", name: "Rooftop PV · 180 kWp planning scenario", inputs: { roofArea: 2600, exclusions: 380, moduleW: 540 }, outputs: { capacityKw: 461 }, assumptions: ["Planning values only", "Structural and DISCOM validation pending"] }, emissions, auditEvents };
+}
 
 function metricsFor(rows: MonthlyPoint[]) {
   const electricity = rows.reduce((sum, row) => sum + row.electricity, 0);
@@ -63,11 +67,11 @@ function mapMonthly(rows: Array<Record<string, unknown>>): MonthlyPoint[] {
 
 function mapAsset(row: Record<string, unknown>): Asset {
   return {
-    id: String(row.external_id ?? row.id), name: String(row.name), kind: String(row.equipment_type ?? "Equipment"), system: String(row.system_name ?? "Unclassified"), location: String(row.location ?? "Pune Plant"), rating: String(row.rating ?? "—"), age: Number(row.age_years) || 0, hours: Number(row.operating_hours_year) || 0, criticality: row.criticality === "High" || row.criticality === "Low" ? row.criticality : "Medium", health: Number(row.health_score) || 0, status: row.status === "Needs review" || row.status === "Standby" ? row.status : "Operating", confidence: row.confidence === "A" || row.confidence === "C" || row.confidence === "D" ? row.confidence : "B", note: String(row.note ?? "")
+    id: String(row.external_id ?? row.id), name: String(row.name), kind: String(row.equipment_type ?? "Equipment"), system: String(row.system_name ?? "Unclassified"), location: String(row.location ?? "Unclassified"), rating: String(row.rating ?? "—"), age: Number(row.age_years) || 0, hours: Number(row.operating_hours_year) || 0, criticality: row.criticality === "High" || row.criticality === "Low" ? row.criticality : "Medium", health: Number(row.health_score) || 0, status: row.status === "Needs review" || row.status === "Standby" ? row.status : "Operating", confidence: row.confidence === "A" || row.confidence === "C" || row.confidence === "D" ? row.confidence : "B", note: String(row.note ?? "")
   };
 }
 
-function mapAudit(row: Record<string, unknown>): typeof demoAudit {
+function mapAudit(row: Record<string, unknown>): DemoData["audit"] {
   return { id: String(row.code ?? row.id), name: String(row.name), level: String(row.level), period: `${String(row.period_start)} — ${String(row.period_end)}`, state: String(row.state), completeness: Number(row.completeness) || 0, owner: String(row.owner_name ?? "Unassigned"), reviewer: String(row.reviewer_name ?? "Unassigned"), boundary: String(row.boundary ?? "Not defined"), purpose: String(row.purpose ?? "") };
 }
 
@@ -78,17 +82,19 @@ function mapEcm(row: Record<string, unknown>): ECM {
   return { id: String(row.code ?? row.id), title: String(row.title), system: String(row.system_name ?? "Unclassified"), observation: String(row.observation ?? ""), action: String(row.proposed_action ?? ""), savingsKwh: Number(row.savings_kwh) || 0, costSavings: Number(row.cost_savings_inr) || 0, carbon: Number(row.carbon_tonnes) || 0, capexLow: Number(row.capex_low_inr) || 0, capexHigh: Number(row.capex_high_inr) || 0, payback: Number(row.payback_years) || 0, confidence, effort: Number(row.effort) || 0, risk, status, interactionGroup: row.interaction_group ? String(row.interaction_group) : undefined, mv: String(row.mv_method ?? "Not defined"), owner: String(row.owner_name ?? "Unassigned"), provenance: (row.provenance as ECM["provenance"]) ?? provenance(String(row.code ?? row.id), "kWh/year", "calculated", confidence, ["Persisted ECM record"], "persisted-records") };
 }
 
-function mapEvidence(row: Record<string, unknown>): (typeof demoEvidence)[number] {
+function mapEvidence(row: Record<string, unknown>): DemoData["evidence"][number] {
   const confidence = row.confidence === "A" || row.confidence === "C" || row.confidence === "D" ? row.confidence : "B";
   return { id: String(row.evidence_id ?? row.id), type: String(row.evidence_type ?? "Evidence"), title: String(row.title), status: String(row.status ?? "pending"), date: String(row.captured_at ?? "Not dated"), confidence, note: String(row.note ?? "") };
 }
 
 export async function getWorkspaceSnapshot(): Promise<WorkspaceSnapshot> {
-  if (getDataMode() !== "supabase") return demoSnapshot;
-  if (!isSupabaseConfigured()) return emptySnapshot;
-  const context = await getAuthContext();
-  if (!context.user || !context.memberships[0]) return emptySnapshot;
-  const organizationId = context.memberships[0].organization_id;
+  if (getDataMode() === "demo") return getDemoSnapshot();
+  if (!isSupabaseConfigured()) return { ...emptySnapshot, configurationError: "Supabase configuration is incomplete. Set the required server variables." };
+  let context;
+  try { context = await getAuthContext(); } catch { return { ...emptySnapshot, configurationError: "Unable to load the authenticated workspace context." }; }
+  if (!context.user) return { ...emptySnapshot, configurationError: "Authentication is required to load workspace data." };
+  if (!context.activeOrganization) return emptySnapshot;
+  const organizationId = context.activeOrganization.id;
   const supabase = await getSupabaseServerClient();
   const [organization, site, audit, bills, assets, ecms, evidence, solarScenario, auditEvents] = await Promise.all([
     supabase.from("organizations").select("id,name,slug").eq("id", organizationId).maybeSingle(),
@@ -102,7 +108,7 @@ export async function getWorkspaceSnapshot(): Promise<WorkspaceSnapshot> {
     supabase.from("audit_events").select("event_type,actor_name,occurred_at,details").eq("organization_id", organizationId).order("occurred_at", { ascending: false }).limit(20),
   ]);
   const failed = [organization, site, audit, bills, assets, ecms, evidence, solarScenario, auditEvents].find((result) => result.error);
-  if (failed?.error) throw new Error(`SUPABASE_QUERY_FAILED:${failed.error.message}`);
+  if (failed?.error) return { ...emptySnapshot, organizationId, siteId: context.activeSite?.id, configurationError: "Unable to load workspace records from Supabase." };
   const monthly = mapMonthly(bills.data ?? []);
   const organizationData = organization.data;
   const siteData = site.data;

@@ -39,13 +39,14 @@ export async function updateSession(request: NextRequest) {
   const authenticated = Boolean(data?.claims?.sub);
 
   if (!authenticated && !isPublicPath(pathname)) {
+    if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const login = new URL("/login", request.url);
     login.searchParams.set("next", pathname);
     return NextResponse.redirect(login);
   }
 
   if (authenticated && (pathname === "/login" || pathname === "/signup")) {
-    return NextResponse.redirect(new URL("/overview", request.url));
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   return response;

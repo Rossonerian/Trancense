@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 
 export function OnboardingForm() {
   const router = useRouter();
-  const [fields, setFields] = useState({ organizationName: "", siteName: "", region: "Pune, Maharashtra", country: "India", jobRole: "", phone: "" });
+  const [fields, setFields] = useState({ organizationName: "", siteName: "", region: "", country: "", jobRole: "", phone: "" });
   const [error, setError] = useState(""); const [loading, setLoading] = useState(false);
   const update = (key: keyof typeof fields, value: string) => setFields((current) => ({ ...current, [key]: value }));
   async function submit(event: FormEvent) { event.preventDefault(); setLoading(true); setError(""); try { const response = await fetch("/api/onboarding", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(fields) }); const result = await response.json() as { error?: string }; if (!response.ok) throw new Error(result.error || "Unable to complete onboarding."); router.push("/overview"); router.refresh(); } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to complete onboarding."); } finally { setLoading(false); } }

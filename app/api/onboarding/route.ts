@@ -16,20 +16,30 @@ const onboardingSchema = z.object({
 export async function POST(request: Request) {
   try {
     const context = await getAuthContext();
-    if (!context.user || !context.memberships[0]) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+    if (!context.user) return NextResponse.json({ error: "Authentication required." }, { status: 401 });
     const parsed = onboardingSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Please complete all required onboarding fields." }, { status: 400 });
     const admin = getSupabaseAdmin();
     if (!admin) return NextResponse.json({ error: "Server setup is incomplete: the server-only Supabase credential is missing or invalid." }, { status: 503 });
-    const membership = context.memberships[0];
-    const { error: orgError } = await admin.from("organizations").update({ name: parsed.data.organizationName }).eq("id", membership.organization_id);
-    if (orgError) throw orgError;
-    const { data: site, error: siteError } = await admin.from("sites").upsert({ organization_id: membership.organization_id, name: parsed.data.siteName, region: parsed.data.region, timezone: "Asia/Kolkata" }, { onConflict: "organization_id,name" }).select("id,name").single();
+    let organizationId = context.activeOrganization?.id;
+    if (organizationId) {
+      const { error: orgError } = await admin.from("organizations").update({ name: parsed.data.organizationName, is_demo: false }).eq("id", organizationId);
+      if (orgError) throw orgError;
+    } else {
+      const slugBase = parsed.data.organizationName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "workspace";
+      const { data: organization, error: orgError } = await admin.from("organizations").insert({ slug: `${slugBase}-${context.user.id.slice(0, 8)}`, name: parsed.data.organizationName, is_demo: false }).select("id").single();
+      if (orgError || !organization) throw orgError ?? new Error("Unable to create organization.");
+      organizationId = organization.id;
+      const { error: membershipError } = await admin.from("organization_memberships").insert({ organization_id: organizationId, user_id: context.user.id, role: "Executive/Viewer", status: "active" });
+      if (membershipError) throw membershipError;
+    }
+    const { data: site, error: siteError } = await admin.from("sites").upsert({ organization_id: organizationId, name: parsed.data.siteName, region: parsed.data.region, timezone: "Asia/Kolkata" }, { onConflict: "organization_id,name" }).select("id,name").single();
     if (siteError) throw siteError;
     const supabase = await getSupabaseServerClient();
     const { error: profileError } = await supabase.from("profiles").update({ full_name: context.user.user_metadata?.full_name ?? "", job_role: parsed.data.jobRole, country: parsed.data.country, phone: parsed.data.phone || null, onboarding_completed: true }).eq("id", context.user.id);
     if (profileError) throw profileError;
-    return NextResponse.json({ organizationId: membership.organization_id, site });
+    await admin.from("audit_events").insert({ organization_id: organizationId, event_type: "onboarding_completed", actor_name: context.user.email ?? context.user.id, details: { site_id: site.id } });
+    return NextResponse.json({ organizationId, site });
   } catch (error) {
     console.error("[trancense-onboarding] failed", { reason: error instanceof Error ? error.message : "unknown" });
     return NextResponse.json({ error: "Unable to complete onboarding." }, { status: 500 });

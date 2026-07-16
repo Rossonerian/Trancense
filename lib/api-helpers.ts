@@ -6,6 +6,6 @@ export function apiError(error: unknown, fallback = "Request could not be comple
   if (message === "NO_WORKSPACE") return NextResponse.json({ error: "No active organization membership is available." }, { status: 403 });
   if (message === "FORBIDDEN") return NextResponse.json({ error: "Your role cannot perform this action." }, { status: 403 });
   if (message === "SUPABASE_CONFIGURATION_MISSING") return NextResponse.json({ error: "Supabase mode is not configured." }, { status: 503 });
-  console.error("[trancense-api] request failed", { reason: message || "unknown" });
+  console.error("[trancense-api] request failed", { errorType: error instanceof Error ? error.name : "unknown" });
   return NextResponse.json({ error: fallback }, { status: 500 });
 }

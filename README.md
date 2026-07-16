@@ -45,10 +45,12 @@ STORAGE_SUPABASE_SERVICE_ROLE_KEY=
 # Local-development aliases
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 DATABASE_URL=
 DIRECT_URL=
 DATA_MODE=supabase
+NEXT_PUBLIC_APP_URL=https://trancense.vercel.app
 
 AI_PROVIDER=auto
 OPENROUTER_API_KEY=
@@ -65,7 +67,7 @@ GEMINI_MODEL=
 
 ## Supabase project and migrations
 
-1. Create a Supabase project and open **Connect** / **API** in the dashboard. Copy the Project URL, publishable/anon key, service-role key, transaction pooler URL, and direct database URL into `.env.local` without committing the file. In Vercel, the Supabase integration may inject the same values under the `NEXT_PUBLIC_STORAGE_SUPABASE_*` / `STORAGE_SUPABASE_SERVICE_ROLE_KEY` names documented above.
+1. Use the intended Supabase project root `https://uchnaeoenlcnerddxwwf.supabase.co` for this deployment, and open **Connect** / **API** in that project. Copy the Project URL, publishable/anon key, service-role key, transaction pooler URL, and direct database URL into `.env.local` without committing the file. In Vercel, the Supabase integration may inject the same values under the `NEXT_PUBLIC_STORAGE_SUPABASE_*` / `STORAGE_SUPABASE_SERVICE_ROLE_KEY` names documented above. The source code does not hard-code this project URL; `/api/health` reports the resolved hostname so operators can detect a project mismatch.
 2. Configure Auth → URL Configuration. For Production use Site URL `https://trancense.vercel.app` and redirect URLs `https://trancense.vercel.app/auth/callback` and `https://trancense.vercel.app/reset-password`. For local development use Site URL `http://localhost:3000` and redirect URLs `http://localhost:3000/auth/callback` and `http://localhost:3000/reset-password`.
 3. Enable Email provider/password sign-in. For a real tester, configure custom SMTP; the hosted default email service is best-effort and rate-limited. Enable email confirmation for production and keep it disabled only for a controlled local test project.
 4. Install and authenticate the Supabase CLI, then apply migrations:

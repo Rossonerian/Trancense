@@ -5,6 +5,7 @@ import { FormEvent, useState } from "react";
 import { getAuthRecoveryReason, type AuthRecoveryReason } from "@/lib/auth-recovery";
 import { getTrustedAppOrigin } from "@/lib/app-origin";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
+import { authErrorMessage } from "@/lib/auth-errors";
 
 const copy: Record<AuthRecoveryReason, { title: string; message: string }> = {
   expired: { title: "This confirmation link has expired or has already been used.", message: "Confirmation links can only be used once. Request a new confirmation email and try again." },
@@ -29,9 +30,9 @@ export function AuthRecovery({ reason }: { reason?: string | null }) {
       const origin = getTrustedAppOrigin({ browserOrigin: window.location.origin });
       const { error: resendError } = await getSupabaseBrowserClient().auth.resend({ type: "signup", email, options: { emailRedirectTo: `${origin}/auth/callback` } });
       if (resendError) throw resendError;
-      setMessage(`A new confirmation email was requested for ${email}. Use the newest link only once.`);
+      setMessage("If the account can receive confirmation mail, a new confirmation link has been sent. Use the newest link only once.");
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Unable to request a new confirmation email.");
+      setError(authErrorMessage(caught, "Unable to request a new confirmation email."));
     } finally { setLoading(false); }
   }
 

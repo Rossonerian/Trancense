@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { getSafeInternalPath } from "@/lib/app-origin";
 import { GoogleOAuthButton } from "./google-oauth-button";
+import { authErrorMessage } from "@/lib/auth-errors";
 
 export function LoginForm({ demoMode = false, configurationMessage }: { demoMode?: boolean; configurationMessage?: string }) {
   const router = useRouter();
@@ -25,7 +26,7 @@ export function LoginForm({ demoMode = false, configurationMessage }: { demoMode
       if (authError) throw authError;
       const { data: profile } = await client.from("profiles").select("onboarding_completed").eq("id", (await client.auth.getUser()).data.user?.id ?? "").maybeSingle();
       router.push(profile?.onboarding_completed ? getSafeInternalPath(params.get("next"), "/overview") : "/onboarding"); router.refresh();
-    } catch (caught) { setError(caught instanceof Error ? caught.message : "Unable to sign in."); }
+    } catch (caught) { setError(authErrorMessage(caught, "Unable to sign in.")); }
     finally { setLoading(false); }
   }
 

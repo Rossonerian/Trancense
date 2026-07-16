@@ -35,6 +35,16 @@ export async function GET(request: NextRequest) {
 
     const admin = getSupabaseAdmin();
     if (admin) {
+      const metadata = user.user_metadata ?? {};
+      const profileName = String(metadata.full_name ?? metadata.name ?? "").trim();
+      const { error: profileUpsertError } = await admin.from("profiles").upsert({
+        id: user.id,
+        ...(profileName ? { full_name: profileName } : {}),
+        ...(metadata.job_role ? { job_role: String(metadata.job_role).trim() } : {}),
+        ...(metadata.country ? { country: String(metadata.country).trim() } : {}),
+        ...(metadata.phone ? { phone: String(metadata.phone).trim() } : {}),
+      }, { onConflict: "id" });
+      if (profileUpsertError) return recovery("exchange_failed");
       const { data: invited } = await admin.from("organization_memberships").select("id").eq("user_id", user.id).eq("status", "invited").order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (invited) await admin.from("organization_memberships").update({ status: "active" }).eq("id", invited.id);
     }

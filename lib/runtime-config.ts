@@ -24,11 +24,12 @@ export function isSupabaseConfigured(): boolean {
 
 export function getPublicRuntimeStatus() {
   const configured = isSupabaseConfigured();
-  const enabled = getDataMode() === "supabase" && configured;
+  const supabaseMode = getDataMode() === "supabase";
+  const enabled = supabaseMode && configured;
   return {
-    mode: enabled ? "supabase" as const : "demo" as const,
+    mode: supabaseMode ? "supabase" as const : "demo" as const,
     label: enabled ? "Supabase Data" : "Demo Data",
-    detail: enabled ? "Persistent workspace" : getDataMode() === "supabase" ? "Supabase not configured · using fallback" : "Deterministic seeded workspace",
+    detail: enabled ? "Persistent workspace" : supabaseMode ? `Supabase setup required · missing ${getMissingSupabaseVariables().join(", ")}` : "Deterministic seeded workspace",
     configured,
   };
 }

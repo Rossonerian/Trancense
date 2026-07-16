@@ -12,5 +12,5 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const health = await getHealthStatus();
-  return <html lang="en"><body><AppShell dataStatus={{ label: health.dataLabel, detail: health.status === "ok" ? health.dataLabel === "Supabase Data" ? "Persistent workspace" : "Deterministic seeded workspace" : "Supabase unavailable · using fallback" }}>{children}</AppShell><Analytics /><SpeedInsights /></body></html>;
+  return <html lang="en"><body><AppShell dataStatus={{ label: health.dataLabel, detail: health.status === "ok" ? health.dataLabel === "Supabase Data" ? "Persistent workspace" : "Deterministic seeded workspace" : health.dataMode === "supabase" ? `Supabase setup required · missing ${health.missingVariables.join(", ") || "database connection"}` : "Deterministic seeded workspace" }}>{children}</AppShell><Analytics /><SpeedInsights /></body></html>;
 }

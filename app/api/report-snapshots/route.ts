@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { apiError } from "@/lib/api-helpers";
+import { canWrite, requireWorkspaceContext } from "@/lib/auth";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+const schema = z.object({ auditId: z.string().uuid(), snapshotCode: z.string().trim().min(2).max(120), payload: z.record(z.string(), z.unknown()) });
+export async function POST(request: Request) { try { const context = await requireWorkspaceContext(); if (!canWrite(context.membership.role)) throw new Error("FORBIDDEN"); const parsed = schema.safeParse(await request.json()); if (!parsed.success) return NextResponse.json({ error: "A valid audit snapshot is required." }, { status: 400 }); const supabase = await getSupabaseServerClient(); const { data: audit } = await supabase.from("audits").select("id").eq("id", parsed.data.auditId).eq("organization_id", context.organizationId).maybeSingle(); if (!audit) return NextResponse.json({ error: "Audit is not in your organization." }, { status: 403 }); const { data, error } = await supabase.from("report_snapshots").insert({ organization_id: context.organizationId, audit_id: parsed.data.auditId, snapshot_code: parsed.data.snapshotCode, version: 1, status: "draft", payload: parsed.data.payload }).select("id,snapshot_code,version,status,created_at").single(); if (error) throw error; await supabase.from("audit_events").insert({ organization_id: context.organizationId, audit_id: parsed.data.auditId, event_type: "report_snapshot_created", actor_name: context.user.email ?? context.user.id, details: { snapshot_id: data.id } }); return NextResponse.json({ data }, { status: 201 }); } catch (error) { return apiError(error, "Unable to create report snapshot."); } }

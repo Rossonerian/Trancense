@@ -1,0 +1,8 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { apiError } from "@/lib/api-helpers";
+import { canWrite, requireWorkspaceContext } from "@/lib/auth";
+import { getSupabaseServerClient } from "@/lib/supabase/server";
+
+const schema = z.object({ meterId: z.string().uuid(), readingAt: z.string().datetime(), value: z.number().min(0), unit: z.string().trim().min(1).max(40), quality: z.enum(["unvalidated", "validated", "estimated"]).default("unvalidated"), source: z.string().trim().max(160).optional() });
+export async function POST(request: Request) { try { const context = await requireWorkspaceContext(); if (!canWrite(context.membership.role)) throw new Error("FORBIDDEN"); const parsed = schema.safeParse(await request.json()); if (!parsed.success) return NextResponse.json({ error: "Meter reading data is invalid." }, { status: 400 }); const supabase = await getSupabaseServerClient(); const { data: meter } = await supabase.from("meters").select("id,site_id").eq("id", parsed.data.meterId).eq("organization_id", context.organizationId).maybeSingle(); if (!meter) return NextResponse.json({ error: "Meter is not in your organization." }, { status: 403 }); const { data, error } = await supabase.from("meter_readings").upsert({ organization_id: context.organizationId, site_id: meter.site_id, meter_id: meter.id, reading_at: parsed.data.readingAt, value: parsed.data.value, unit: parsed.data.unit, quality: parsed.data.quality, source: parsed.data.source ?? null, created_by: context.user.id }, { onConflict: "meter_id,reading_at" }).select("id,reading_at,value,quality").single(); if (error) throw error; return NextResponse.json({ data }, { status: 201 }); } catch (error) { return apiError(error, "Unable to save meter reading."); } }

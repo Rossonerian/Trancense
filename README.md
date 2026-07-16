@@ -1,156 +1,152 @@
 # Trancense
 
-Trancense is an evidence-led AI energy audit platform MVP for Indian industrial and commercial facilities. The existing dark editorial UI is unchanged; this release adds a production-compatible Supabase data path, safe server-side provider routing, and a pitch deployment path while keeping the deterministic demo available.
+Trancense is an evidence-led AI energy-audit platform for tester-ready industrial workspaces. The existing dark SaaS interface and deterministic calculation engine are preserved; this release adds authenticated Supabase persistence, tenant isolation, role-aware workflows, and safe server-side AI grounding.
 
-Seeded demo: **Shakti Precision Components Pvt. Ltd. — Pune Plant**, Detailed audit, `01 Apr 2025 — 31 Mar 2026`.
+The product is decision-support software. It does not provide BEE certification, PAT filing, legal compliance approval, automatic equipment control, auditor sign-off, live SCADA/PLC/BMS connections, vendor endorsement, or guaranteed savings.
 
-## Product boundaries
+## Architecture
 
-This is decision-support software. It does not provide BEE certification, PAT filing, legal compliance approval, automatic equipment control, predictive-maintenance failure prediction, a digital twin, subsidy/net-metering eligibility, vendor endorsement, live Modbus/BACnet/MQTT/SCADA/PLC/BMS connections, native mobile apps, or DOCX/XLSX export.
+- Next.js App Router 16.2.10, React 19, strict TypeScript, and the existing responsive UI.
+- `DATA_MODE=demo` uses the explicit deterministic seed in [`lib/demo-data.ts`](./lib/demo-data.ts) for local product demos and calculation fixtures only.
+- `DATA_MODE=supabase` requires an authenticated Supabase session and active organization membership. It never silently falls back to demo data. Empty organizations receive setup/empty states instead of fabricated metrics.
+- [`lib/supabase/client.ts`](./lib/supabase/client.ts) and [`lib/supabase/server.ts`](./lib/supabase/server.ts) use `@supabase/ssr` cookies. [`proxy.ts`](./proxy.ts) refreshes sessions with verified claims before protected routes execute.
+- [`lib/data-access.ts`](./lib/data-access.ts) is the tenant-scoped read adapter. Route handlers under [`app/api`](./app/api) validate input with Zod, check membership and roles, write records, and append audit events.
+- PostgreSQL schema and RLS are versioned under [`supabase/migrations`](./supabase/migrations). The service-role client is limited to trusted seed, onboarding, and invitation operations and is never imported by browser code.
+- Authoritative numerical outputs remain in [`lib/calculations.ts`](./lib/calculations.ts). The assistant can explain authorized records but cannot create energy, financial, carbon, tariff, compliance, or savings values.
 
-Authoritative numerical results remain in typed pure functions in [`lib/calculations.ts`](./lib/calculations.ts). External AI can explain approved calculations and evidence only; it cannot create energy, financial, carbon, tariff, compliance, or savings values.
-
-## Stack and architecture
-
-- Next.js App Router 16, React 19, strict TypeScript, and the existing responsive dark SaaS design system.
-- Deterministic adapter in [`lib/demo-data.ts`](./lib/demo-data.ts), selected automatically when `DATA_MODE=demo` or Supabase is unavailable.
-- Server-only Supabase repository in [`lib/data-access.ts`](./lib/data-access.ts) using `@supabase/supabase-js`; no ORM was added because the existing MVP had no persistence layer to preserve.
-- SQL schema/RLS migration in [`supabase/migrations`](./supabase/migrations), deterministic seed script in [`scripts/seed-supabase.ts`](./scripts/seed-supabase.ts), and server-only service-role access.
-- Server-only assistant route at `/api/assistant`: OpenRouter free-model catalogue discovery, optional Groq/Gemini fallbacks, then deterministic grounded response.
-- Safe health route at `/api/health`; it reports data mode, provider mode, missing variable names, and a Supabase connectivity result without returning secrets.
-
-Routes:
-
-`/overview` · `/audits/[id]` · `/data` · `/assets` · `/energy-balance` · `/analytics` · `/ecms` · `/solar` · `/reports` · `/assistant` · `/settings` · `/api/health` · `/api/assistant`
+Routes include `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/onboarding`, `/overview`, `/audits`, `/audits/[id]`, `/data`, `/assets`, `/energy-balance`, `/analytics`, `/ecms`, `/solar`, `/reports`, `/assistant`, `/settings`, and `/api/health`.
 
 ## Local setup
 
 Requirements: Node.js 20+ and npm.
 
 ```bash
-git clone https://github.com/RossoKashy/Trancense.git
+git clone https://github.com/Rossonerian/Trancense.git
 cd Trancense
-npm install
+npm ci
 cp .env.example .env.local
+# For a zero-setup local UI demo, set DATA_MODE=demo in .env.local.
 npm run dev
 ```
 
-Open [http://localhost:3000/overview](http://localhost:3000/overview). With the default `DATA_MODE=demo`, no account, database, or API key is required. The shell shows `Demo Data` and `/assistant` shows `Grounded Demo Response`.
+Open <http://localhost:3000/overview>. Demo mode requires no account or database and shows the explicit `Demo Data` status. Persistent mode requires the Supabase setup below and shows `Supabase Data` only after the authenticated database path is healthy.
 
 ## Environment variables
 
-`.env.local` is ignored and must never be committed. `.env.example` contains names only. Missing Supabase or AI variables do not break deterministic demo mode.
+`.env.example` contains names only. `.env.local`, `.env`, database dumps, and private credential files are ignored by Git. Never expose the service-role or AI keys with a `NEXT_PUBLIC_` prefix.
 
-### Required only for Supabase mode
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+DIRECT_URL=
+DATA_MODE=supabase
 
-- `DATA_MODE=demo|supabase` — use `demo` for the zero-setup fallback; use `supabase` after migration and seed.
-- `NEXT_PUBLIC_SUPABASE_URL` — Project URL from the Supabase dashboard Connect/API settings.
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — publishable/anon key; safe for browser use but not used for privileged seed access.
-- `SUPABASE_SERVICE_ROLE_KEY` — server-only service-role key from Supabase API settings. Never prefix it with `NEXT_PUBLIC_`, log it, or send it to a client.
-- `DATABASE_URL` — Supabase transaction pooler URL from the Connect dialog, useful for server/CLI tooling.
-- `DIRECT_URL` — direct database URL from the Connect dialog, useful for migrations/admin tooling. The current app uses the Supabase Data API, so these URLs are not required to render the app.
+AI_PROVIDER=auto
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL_CHAIN=
+GROQ_API_KEY=
+GROQ_MODEL=
+GOOGLE_GENERATIVE_AI_API_KEY=
+GEMINI_MODEL=
+```
 
-### Optional AI variables
+`DATA_MODE=supabase` is the production setting. `DATA_MODE=demo` is an explicit local development mode only. If Supabase mode is missing configuration, the app reports the missing variable names and does not show mock records. The required browser-safe values are the project URL and publishable/anon key; the service-role key is server-only. `DATABASE_URL` should be a transaction-pooler connection for serverless tooling and `DIRECT_URL` the direct connection for migrations/admin work. The current application uses the Supabase Data API, so neither URL is read by the browser.
 
-- `AI_PROVIDER=auto|demo|openrouter|groq|gemini`
-- `OPENROUTER_API_KEY`, `OPENROUTER_MODEL_CHAIN`, `OPENROUTER_SITE_URL`, `OPENROUTER_APP_NAME`
-- `GROQ_API_KEY`, `GROQ_MODEL`
-- `GOOGLE_GENERATIVE_AI_API_KEY`, `GEMINI_MODEL`
+## Supabase project and migrations
 
-Keys are read only in server modules and route handlers. They are not imported into client components or returned by `/api/health`.
-
-## Supabase setup and persistence
-
-1. Create a Supabase project at [supabase.com](https://supabase.com/).
-2. In the project dashboard, open Connect/API settings and copy the Project URL, publishable/anon key, service-role key, transaction pooler URL, and direct connection URL into local `.env.local`. Do not paste secrets into Git or chat.
-3. Install and authenticate the Supabase CLI, then link the project:
+1. Create a Supabase project and open **Connect** / **API** in the dashboard. Copy the Project URL, publishable/anon key, service-role key, transaction pooler URL, and direct database URL into `.env.local` without committing the file.
+2. Configure Auth → URL Configuration. Set the Site URL to the local or deployed origin and add `${ORIGIN}/auth/callback` and `${ORIGIN}/reset-password` as redirect URLs.
+3. Enable Email provider/password sign-in. For a real tester, configure custom SMTP; the hosted default email service is best-effort and rate-limited. Enable email confirmation for production and keep it disabled only for a controlled local test project.
+4. Install and authenticate the Supabase CLI, then apply migrations:
 
    ```bash
+   # Run once if this checkout does not yet have supabase/config.toml.
+   supabase init
    supabase login
-   supabase init  # once, if this checkout does not already have supabase/config.toml
    supabase link --project-ref YOUR_PROJECT_REF
    supabase db push
    ```
 
-   This applies [`20260716000000_trancense_core.sql`](./supabase/migrations/20260716000000_trancense_core.sql), including organizations, sites, audits, assets, meters, bills, calculations, ECMs, solar scenarios, evidence, audit events, report snapshots, indexes, and RLS policies.
+   The migrations create profiles, organizations, organization memberships, sites, audit boundaries/versions, assets, meters, bills, readings, production records, tariffs, emission factors, evidence metadata, import batches/rows/findings, calculation runs/results, ECMs/interactions/M&V plans, solar scenarios, workflow transitions, approvals, comments, audit events, report snapshots, citations, indexes, triggers, and RLS policies.
 
-4. Seed the existing demo through the server-only service-role path:
+5. Seed only a development/demo project when the deterministic Shakti Precision Components Pvt. Ltd. Pune Plant dataset is wanted:
 
    ```bash
-   DATA_MODE=supabase npm run db:seed
+   npm run db:seed -- TESTER_USER_UUID
    ```
 
-5. Set `DATA_MODE=supabase`, restart the app, and confirm `/api/health` reports `"dataMode":"supabase"` and the shell shows `Supabase Data`.
+   The seed uses the server-only service-role boundary, fixed IDs, and `is_demo=true`. It is not called by the production runtime. Omit the user UUID when the seed is only for service-side inspection; provide it to give that existing Auth user a demo organization Admin membership.
 
-The seed is deterministic and upserts fixed IDs, so rerunning it is safe. The UI reads the seeded utility bills and assets through a tenant-scoped organization query. If the database is missing, unreachable, or unseeded, the repository returns the original deterministic dataset and the health endpoint reports degraded status without exposing connection details.
+6. Create the first administrator through the documented server-side command, never through a public signup role selector:
 
-### Auth and RLS
+   ```bash
+   npm run grant:admin -- USER_UUID ORGANIZATION_UUID
+   ```
 
-Frictionless pitch access intentionally does not require a user login. The migration enables RLS on every exposed table and includes membership-based policies for a future authenticated path. If Auth is enabled later, add users to `organization_members` and use Supabase SSR clients with verified claims; never replace the server-only service-role boundary with a browser service-role key. Supabase recommends verified claims for authorization and RLS for exposed tables: [SSR clients](https://supabase.com/docs/guides/auth/server-side/creating-a-client) and [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security).
+   The command requires `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the invoking environment and prints no secret values. Public signup always starts with `Executive/Viewer`.
 
-## AI provider fallback
+### Auth and onboarding
 
-The assistant route follows this order:
+Signup collects full name, organization, role, country, and optional phone. A database trigger creates the profile, a personal organization, and an `Executive/Viewer` membership. Onboarding updates the organization and creates the first site. Login, logout, persistent secure-cookie sessions, email confirmation, resend through Supabase Auth, password reset, callback handling, protected routes, loading states, and validation/error states are implemented.
 
-1. OpenRouter, when selected/available, using only models currently returned by OpenRouter’s catalogue with prompt and completion pricing exactly `0`.
-2. Groq, when configured.
-3. Gemini, when configured.
-4. Deterministic `Grounded Demo Response`.
+The `/settings` administration panel is visible only to an Admin membership. Admins can invite testers, change roles, suspend/remove memberships, and inspect tenant audit events. Reviewers can approve technical outputs; viewers can read permitted records but cannot mutate them. These checks are repeated in route handlers and RLS, not just in the UI.
 
-The OpenRouter chain is discovered at runtime and cached briefly, so disappearing or expiring free models do not break the app. An explicit chain is treated as a preference and is used only when each model is still present and free. Verify the current catalogue with:
+Supabase’s official SSR guidance recommends separate browser/server clients, a proxy for cookie refresh, and verified claims for route protection: [Creating a Supabase client for SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client). Supabase’s official RLS guidance requires RLS on exposed public tables and warns that service keys bypass RLS: [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
-```bash
-npm run ai:verify-models
-```
+## Real tester workflows
 
-On 16 Jul 2026 UTC, the catalogue verification returned 15 eligible text models and this first-five chain:
+With `DATA_MODE=supabase` and a configured account:
 
-```text
-tencent/hy3:free,poolside/laguna-xs-2.1:free,cohere/north-mini-code:free,nvidia/nemotron-3-ultra-550b-a55b:free,poolside/laguna-m.1:free
-```
+1. Sign up, confirm the email, and complete `/onboarding`.
+2. Create an audit from `/audits` after the first site exists.
+3. Import utility bills or asset CSVs from `/data`; formula-like cells are rejected, rows are recorded in import batches, and committed data is tenant-scoped.
+4. Use the APIs or authorized forms to create sites, audits, assets, bills, ECMs, and solar scenarios. Every mutation validates input, checks role, revalidates through the authenticated Supabase client, and appends an audit event.
+5. Review the persisted audit, run deterministic calculations against validated records, create a report snapshot, and use `/assistant` for grounded explanations.
+6. Invite a viewer and a reviewer from Settings. Test that the viewer can read but cannot create, edit, or approve technical outputs.
 
-Free-model names, expiry dates, context limits, availability, and request limits can change. Do not treat that chain as permanent truth; rerun the verifier before a pitch. OpenRouter documents model fallbacks and error behavior at [model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks), [error handling](https://openrouter.ai/docs/api/reference/errors-and-debugging), and [free variants](https://openrouter.ai/docs/guides/routing/model-variants/free). The provider path uses short 8-second timeouts, 1,200-character prompts, 320 output tokens, sequential failover, and safe metadata logs only. It does not retry storms or log prompts.
+If there are no records, the UI shows actions such as **Create your first site**, **Create your first audit**, **Import utility data**, and **No solar scenario yet**. It does not display seeded totals in Supabase mode.
 
-`/assistant` labels a real successful call `Provider Response` and includes provider/model metadata. Without a successful external call it labels the response `Grounded Demo Response`. All responses cite seeded evidence/calculation IDs and retain the refusal guardrail.
+## Evidence and Storage
+
+The current MVP persists CSV/import metadata and evidence metadata in PostgreSQL. It does not yet expose a browser evidence-file upload route, so no private file storage claim is made. Before enabling evidence uploads, create a private Supabase Storage bucket, keep only metadata in `evidence_items`, validate MIME/extension/size server-side, issue signed URLs only from trusted server code, and add organization-scoped Storage policies. Never use the Vercel filesystem or a public bucket for private client evidence.
+
+## Grounded AI fallback
+
+`/api/assistant` always has a deterministic `Grounded Demo Response`. Provider order in `AI_PROVIDER=auto` is OpenRouter free models, optional Groq, optional Gemini, then deterministic fallback. The server:
+
+- queries OpenRouter’s current model catalogue and accepts only text models with both prompt and completion pricing exactly zero;
+- treats `OPENROUTER_MODEL_CHAIN` as a preference, skipping missing, expired, unavailable, 402, 429, 5xx, timeout, and provider-failure models;
+- uses sequential short timeouts, a 1,200-character prompt limit, 320 output tokens, no retry storm, and safe provider/model logs only;
+- supplies only authenticated tenant records in Supabase mode and refuses fabricated readings, savings, compliance, certification, control, or cross-tenant requests;
+- labels responses `Provider Response` only after a provider succeeds and `Grounded Demo Response` otherwise.
+
+Run `npm run ai:verify-models` before a pitch because free availability, expiry, context limits, and rate limits change. A previous local catalogue check recorded these eligible examples, but they are not permanent truth: `tencent/hy3:free`, `poolside/laguna-xs-2.1:free`, `cohere/north-mini-code:free`, `nvidia/nemotron-3-ultra-550b-a55b:free`, and `poolside/laguna-m.1:free`. See OpenRouter’s current [free variants](https://openrouter.ai/docs/guides/routing/model-variants/free), [model fallbacks](https://openrouter.ai/docs/guides/routing/model-fallbacks), and [error handling](https://openrouter.ai/docs/api/reference/errors-and-debugging).
 
 ## Vercel deployment
 
-The app is Vercel-compatible. No filesystem persistence is used by the application or API routes; Supabase is the persistence boundary.
+Import the repository into Vercel with the **Next.js** framework preset, repository root, install command `npm ci`, build command `npm run build`, and the default output directory. No filesystem persistence is required.
 
-1. Push the repository to GitHub and import it into a Vercel project.
-2. Framework preset: **Next.js**. Root directory: repository root. Install command: `npm ci`. Build command: `npm run build`. Output directory: leave the Vercel default.
-3. Add environment variables separately for both **Preview** and **Production**. Never reuse a local `.env.local` file upload.
+Set variables separately for **Preview** and **Production**. Production must use `DATA_MODE=supabase`; use a separate Supabase project or tightly controlled test tenant for Preview when possible. Add the Supabase variables to both environments and add AI variables only as server-side Vercel environment variables. Redeploy after changing environment variables. Confirm the deployed `/api/health` response and the visible `Supabase Data` label before inviting testers.
 
-Production/Preview Supabase variables:
+Pitch checklist:
 
-```text
-DATA_MODE=supabase
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
-DATABASE_URL=...
-DIRECT_URL=...
-```
+- Apply the latest migration and seed only the intended development/demo project.
+- Create the first production Admin with `grant:admin` or a controlled SQL/server-side operation.
+- Sign up a tester, confirm email, complete onboarding, and invite a Viewer and Reviewer.
+- Walk overview → audit → energy balance → analytics → ECM weights → solar → assistant → report preview/print.
+- Refresh in Production and confirm records remain after the Supabase-backed reload.
+- Keep `AI_PROVIDER=demo` if provider quotas could affect the pitch; deterministic grounding remains available.
+- Do not claim deployment succeeded until the Vercel deployment URL and `/api/health` have actually been checked.
 
-Production/Preview AI variables can remain `AI_PROVIDER=demo` for the most reliable pitch, or add server-only provider keys and `AI_PROVIDER=auto`. Add `OPENROUTER_MODEL_CHAIN` only after running the catalogue verifier. Vercel environment variables are scoped by Development, Preview, and Production: [Vercel environment variables](https://vercel.com/docs/environment-variables). The Vercel deployment itself is not claimed here because no Vercel account/deployment was available to verify.
-
-### Pitch-demo checklist
-
-- Apply migration and run `npm run db:seed` locally against the intended Supabase project.
-- Set the same Supabase variables in Vercel Preview and Production; use separate projects or keys when appropriate.
-- Deploy a Preview, open `/api/health`, and confirm `status=ok`, `dataMode=supabase`.
-- Open `/overview` and confirm the sidebar says `Supabase Data`.
-- Walk the demo: audit → energy balance → analytics → ECM weights → solar → assistant → report print.
-- Refresh after the Supabase seed and confirm `/overview` and `/assets` still render.
-- Keep `AI_PROVIDER=demo` if provider rate limits would risk the pitch; the deterministic assistant is the reliable fallback.
+Vercel environment variables are scoped by Development, Preview, and Production: [Vercel environment variables](https://vercel.com/docs/environment-variables). Free-tier provider quotas, database limits, email delivery, and Vercel reporting policies are subject to change and should not be treated as availability guarantees.
 
 ## Vercel Analytics and Speed Insights
 
-The root layout renders the official `@vercel/analytics/next` `Analytics` component and `@vercel/speed-insights/next` `SpeedInsights` component exactly once. They collect aggregate page-view and real-user performance signals across the existing routes; Trancense does not add custom tracking of energy-audit content, credentials, or personally identifiable information. No environment variables or secrets are required for these integrations.
+The root layout renders `Analytics` from `@vercel/analytics` and `SpeedInsights` from `@vercel/speed-insights` exactly once. Web Analytics is viewed in the Vercel project dashboard under **Analytics**. Speed Insights is viewed under **Speed Insights**. No environment variables or secrets are required, and Trancense does not add custom tracking of sensitive audit data or personally identifiable information.
 
-Web Analytics is viewed in the Vercel project dashboard under **Analytics**. Speed Insights is viewed under **Speed Insights**. Data begins collecting after the updated application is deployed and the deployed site is visited, and may not appear immediately on a new deployment. Select the correct environment, normally **Production**, before interpreting the results.
-
-Beginner-friendly activation flow:
+Metrics begin collecting after the updated application is deployed and the deployed site is visited. They may not appear immediately on a new deployment. Select the correct environment, normally **Production**.
 
 1. Deploy the updated project to Vercel.
 2. Open the correct Vercel project.
@@ -158,28 +154,31 @@ Beginner-friendly activation flow:
 4. Open **Speed Insights** and complete any activation step shown by Vercel.
 5. Select the correct environment, normally **Production**.
 6. Open the deployed production URL.
-7. Navigate through several routes: overview, audit, analytics, ECM, solar, assistant, and reports.
+7. Navigate through overview, audit, analytics, ECM, solar, assistant, and reports.
 8. Wait for Vercel to process the initial data.
 9. Return to the **Analytics** and **Speed Insights** tabs.
 
-The official integrations and dashboard behavior are documented in the [Web Analytics quickstart](https://vercel.com/docs/analytics/quickstart), [Analytics package guide](https://vercel.com/docs/analytics/package), [Speed Insights quickstart](https://vercel.com/docs/speed-insights/quickstart), and [Speed Insights overview](https://vercel.com/docs/speed-insights). Vercel plan availability, reporting windows, and usage policies can change; check the dashboard and current Vercel documentation for the active project terms.
+Official references: [Web Analytics quickstart](https://vercel.com/docs/analytics/quickstart), [Analytics package](https://vercel.com/docs/analytics/package), [Speed Insights quickstart](https://vercel.com/docs/speed-insights/quickstart), and [Speed Insights overview](https://vercel.com/docs/speed-insights).
 
 ## Verification
 
-```bash
-npm run typecheck
-npm run lint
-npm test
-npm run build
-npm run ai:verify-models
+Executed in this repository during the current implementation:
+
+```text
+npm run typecheck  PASS
+npm run lint       PASS
+npm test           PASS — 3 files, 9 tests
+npm run build      PASS — Next.js 16.2.10 production build; all app/API routes generated
 ```
 
-The final local verification run passed `npm run typecheck`, `npm run lint`, `npm test` with 7 tests, and `npm run build`. A production-like `npm run start` smoke run returned 200 for every required page route, returned 200 from `/api/health` in Demo Data mode, and returned a cited deterministic response from `/api/assistant` with no provider keys. Supabase refresh persistence requires account-side setup and a configured project, so it is documented as a manual deployment check rather than claimed as locally verified without credentials.
+Migration application against a live Supabase project, account signup/email delivery, Vercel deployment, and Production refresh persistence require account-side credentials and were not claimed as locally verified in this environment. Run `supabase db push`, `npm run db:seed -- USER_UUID`, the auth flow, and the Vercel checklist above against the intended project.
 
-## Security and known limitations
+## Security and free-tier limitations
 
-The service-role key is server-only. RLS is enabled on all public tables. API inputs are Zod-validated, AI prompts are bounded, provider failures fail over without exposing prompt content, and health responses list missing variable names only. Demo data is fictional. The current frictionless demo does not authenticate users, and Supabase edits require the seed/service-role path rather than browser writes. Free AI providers may impose daily request limits, cold starts, expiring models, or provider-specific data policies. `npm audit --audit-level=high` currently reports two moderate transitive PostCSS findings through Next.js and no high/critical findings; `npm audit fix --force` proposes an unsafe breaking downgrade and was not applied.
+Never commit `.env.local`, service-role keys, AI keys, database URLs, user exports, or private evidence. The service role bypasses RLS and is server-only. RLS must remain enabled on every tenant-owned public table. Review Supabase Auth email/SMTP, Storage policies, backups, retention, deletion, rate limits, and audit logging before handling real client data.
+
+Supabase/Vercel/free AI services can have quotas, cold starts, email limits, model expiry, transient failures, storage limits, and changing plan terms. They are suitable for a small pitch/demo, not critical professional audits without backups, privacy review, security testing, monitoring, incident response, and operational hardening.
 
 ## License and contribution
 
-See [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`LICENSE`](./LICENSE). Keep authoritative numbers in the calculation layer, add provenance to new material outputs, and run the full verification set before a pull request.
+See [`CONTRIBUTING.md`](./CONTRIBUTING.md) and [`LICENSE`](./LICENSE). Keep authoritative numbers in the calculation layer, add provenance to material outputs, test tenant isolation, and run the verification set before a pull request.

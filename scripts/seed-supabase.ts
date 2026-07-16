@@ -17,7 +17,7 @@ async function upsert(table: string, rows: Record<string, unknown>[]) {
   if (result.error) throw new Error(`${table}: ${result.error.message}`);
 }
 
-await upsert("organizations", [{ id: organizationId, slug: "shakti-precision", name: company.name }]);
+await upsert("organizations", [{ id: organizationId, slug: "shakti-precision", name: company.name, is_demo: true }]);
 await upsert("sites", [{ id: siteId, organization_id: organizationId, name: company.site, region: company.region, timezone: company.timezone }]);
 await upsert("audits", [{ id: auditId, organization_id: organizationId, site_id: siteId, code: audit.id, name: audit.name, level: audit.level, period_start: "2025-04-01", period_end: "2026-03-31", state: audit.state, completeness: audit.completeness, owner_name: audit.owner, reviewer_name: audit.reviewer, boundary: audit.boundary, purpose: audit.purpose, snapshot_version: "AUDIT-SNAPSHOT-014-v3" }]);
 await upsert("utility_bills", monthly.map((row, index) => ({ id: uuid(100 + index), organization_id: organizationId, site_id: siteId, billing_month: isoMonth(row.month, index), electricity_kwh: row.electricity, diesel_litres: row.diesel, natural_gas_kwh: row.gas, solar_kwh: row.solar, total_cost_inr: row.cost, production_units: row.production, source_id: "EV-0251", confidence: "A" })));
@@ -29,4 +29,7 @@ await upsert("evidence", evidence.map((item, index) => ({ id: uuid(600 + index),
 await upsert("audit_events", [{ id: uuid(700), organization_id: organizationId, audit_id: auditId, event_type: "technical_review_requested", actor_name: "Ananya Rao", details: { state: audit.state }, occurred_at: "2026-06-18T15:20:00+05:30" }, { id: uuid(701), organization_id: organizationId, audit_id: auditId, event_type: "ecm_register_updated", actor_name: "Ananya Rao", details: { ecm: "ECM-03" }, occurred_at: "2026-06-16T11:04:00+05:30" }]);
 await upsert("report_snapshots", [{ id: uuid(800), organization_id: organizationId, audit_id: auditId, snapshot_code: "AUDIT-SNAPSHOT-014-v3", version: 3, status: "technical_review", payload: { title: "Detailed energy performance audit", evidenceIds: evidence.map((item) => item.id), calculationIds: ["CALC-ENERGY-AGG-01", "CALC-BAL-014"] } }]);
 
-console.log(`Seeded Trancense demo organization ${organizationId} with ${monthly.length} bills, ${assets.length} assets, and ${ecms.length} ECMs.`);
+const testerUserId = process.argv[2] ?? process.env.SEED_AUTH_USER_ID;
+if (testerUserId) await upsert("organization_memberships", [{ organization_id: organizationId, user_id: testerUserId, role: "Admin", status: "active" }]);
+
+console.log(`Seeded the explicitly labeled demo organization with ${monthly.length} bills, ${assets.length} assets, and ${ecms.length} ECMs.`);

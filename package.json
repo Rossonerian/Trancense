@@ -11,9 +11,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:seed": "tsx scripts/seed-supabase.ts",
+    "grant:admin": "tsx scripts/grant-admin.ts",
     "ai:verify-models": "node scripts/verify-openrouter-models.mjs"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.3",
     "@supabase/supabase-js": "^2.110.7",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",

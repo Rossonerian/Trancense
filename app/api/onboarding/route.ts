@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const parsed = onboardingSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Please complete all required onboarding fields." }, { status: 400 });
     const admin = getSupabaseAdmin();
-    if (!admin) return NextResponse.json({ error: "Server setup is incomplete: SUPABASE_SERVICE_ROLE_KEY is missing." }, { status: 503 });
+    if (!admin) return NextResponse.json({ error: "Server setup is incomplete: the server-only Supabase credential is missing or invalid." }, { status: 503 });
     const membership = context.memberships[0];
     const { error: orgError } = await admin.from("organizations").update({ name: parsed.data.organizationName }).eq("id", membership.organization_id);
     if (orgError) throw orgError;

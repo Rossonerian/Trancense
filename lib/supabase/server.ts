@@ -2,14 +2,14 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabasePublicConfig } from "./config";
 
 export async function getSupabaseServerClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!url || !key) throw new Error("Supabase server configuration is missing");
+  const config = getSupabasePublicConfig();
+  if (!config.url || !config.publishableKey || config.invalidUrl) throw new Error("Supabase server configuration is missing or invalid");
 
   const cookieStore = await cookies();
-  return createServerClient(url, key, {
+  return createServerClient(config.url, config.publishableKey, {
     cookies: {
       getAll() {
         return cookieStore.getAll();

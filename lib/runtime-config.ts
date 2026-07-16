@@ -2,8 +2,7 @@ import "server-only";
 
 export type DataMode = "demo" | "supabase";
 export type AIProvider = "auto" | "demo" | "openrouter" | "groq" | "gemini";
-
-const requiredSupabaseVariables = ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY", "SUPABASE_SERVICE_ROLE_KEY"] as const;
+import { getSupabaseServerConfig } from "./supabase/server-config";
 
 export function getDataMode(): DataMode {
   return process.env.DATA_MODE === "supabase" ? "supabase" : "demo";
@@ -15,11 +14,12 @@ export function getAIProvider(): AIProvider {
 }
 
 export function getMissingSupabaseVariables(): string[] {
-  return requiredSupabaseVariables.filter((name) => !process.env[name]);
+  return getSupabaseServerConfig().missingVariables;
 }
 
 export function isSupabaseConfigured(): boolean {
-  return getMissingSupabaseVariables().length === 0;
+  const config = getSupabaseServerConfig();
+  return Boolean(config.url && config.publishableKey && config.serviceRoleKey && !config.invalidUrl);
 }
 
 export function getPublicRuntimeStatus() {

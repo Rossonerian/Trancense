@@ -36,6 +36,13 @@ Open <http://localhost:3000/overview>. Demo mode requires no account or database
 `.env.example` contains names only. `.env.local`, `.env`, database dumps, and private credential files are ignored by Git. Never expose the service-role or AI keys with a `NEXT_PUBLIC_` prefix.
 
 ```env
+# Vercel Supabase integration names
+NEXT_PUBLIC_STORAGE_SUPABASE_URL=
+NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY=
+NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY=
+STORAGE_SUPABASE_SERVICE_ROLE_KEY=
+
+# Local-development aliases
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
@@ -52,11 +59,11 @@ GOOGLE_GENERATIVE_AI_API_KEY=
 GEMINI_MODEL=
 ```
 
-`DATA_MODE=supabase` is the production setting. `DATA_MODE=demo` is an explicit local development mode only. If Supabase mode is missing configuration, the app reports the missing variable names and does not show mock records. The required browser-safe values are the project URL and publishable/anon key; the service-role key is server-only. `DATABASE_URL` should be a transaction-pooler connection for serverless tooling and `DIRECT_URL` the direct connection for migrations/admin work. The current application uses the Supabase Data API, so neither URL is read by the browser.
+`DATA_MODE=supabase` is the production setting. `DATA_MODE=demo` is an explicit local development mode only. The resolver prefers the Vercel integration names `NEXT_PUBLIC_STORAGE_SUPABASE_URL`, `NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY`, and `STORAGE_SUPABASE_SERVICE_ROLE_KEY`; the original `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` names remain supported as local aliases. Only the `NEXT_PUBLIC_*` URL and publishable/anon key are browser-safe. The service-role key is server-only and is never imported by browser code. The URL must be the Supabase project root, such as `https://YOUR_PROJECT_REF.supabase.co`; `/rest/v1`, `/auth/v1`, `/storage/v1`, dashboard, project, query-string, and malformed URLs are rejected. The Supabase SDK constructs `/auth/v1/signup` itself, so the application never appends `/auth/v1` to the configured URL. `DATABASE_URL` should be a transaction-pooler connection for serverless tooling and `DIRECT_URL` the direct connection for migrations/admin work. The current application uses the Supabase Data API, so neither URL is read by the browser.
 
 ## Supabase project and migrations
 
-1. Create a Supabase project and open **Connect** / **API** in the dashboard. Copy the Project URL, publishable/anon key, service-role key, transaction pooler URL, and direct database URL into `.env.local` without committing the file.
+1. Create a Supabase project and open **Connect** / **API** in the dashboard. Copy the Project URL, publishable/anon key, service-role key, transaction pooler URL, and direct database URL into `.env.local` without committing the file. In Vercel, the Supabase integration may inject the same values under the `NEXT_PUBLIC_STORAGE_SUPABASE_*` / `STORAGE_SUPABASE_SERVICE_ROLE_KEY` names documented above.
 2. Configure Auth → URL Configuration. Set the Site URL to the local or deployed origin and add `${ORIGIN}/auth/callback` and `${ORIGIN}/reset-password` as redirect URLs.
 3. Enable Email provider/password sign-in. For a real tester, configure custom SMTP; the hosted default email service is best-effort and rate-limited. Enable email confirmation for production and keep it disabled only for a controlled local test project.
 4. Install and authenticate the Supabase CLI, then apply migrations:
@@ -85,7 +92,7 @@ GEMINI_MODEL=
    npm run grant:admin -- USER_UUID ORGANIZATION_UUID
    ```
 
-   The command requires `NEXT_PUBLIC_SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the invoking environment and prints no secret values. Public signup always starts with `Executive/Viewer`.
+   The command requires one supported Supabase project URL and one supported server-only service-role variable in the invoking environment and prints no secret values. Public signup always starts with `Executive/Viewer`.
 
 ### Auth and onboarding
 
@@ -128,7 +135,7 @@ Run `npm run ai:verify-models` before a pitch because free availability, expiry,
 
 Import the repository into Vercel with the **Next.js** framework preset, repository root, install command `npm ci`, build command `npm run build`, and the default output directory. No filesystem persistence is required.
 
-Set variables separately for **Preview** and **Production**. Production must use `DATA_MODE=supabase`; use a separate Supabase project or tightly controlled test tenant for Preview when possible. Add the Supabase variables to both environments and add AI variables only as server-side Vercel environment variables. Redeploy after changing environment variables. Confirm the deployed `/api/health` response and the visible `Supabase Data` label before inviting testers.
+Set variables separately for **Preview** and **Production**. Production must use `DATA_MODE=supabase`; use a separate Supabase project or tightly controlled test tenant for Preview when possible. Add the resolved Vercel integration names—or the supported local aliases—to both environments as needed. Add AI variables only as server-side Vercel environment variables. Redeploy after changing environment variables; changing Vercel environment variables does not update an existing deployment. Confirm the deployed `/api/health` response and the visible `Supabase Data` label before inviting testers.
 
 Pitch checklist:
 
@@ -167,7 +174,7 @@ Executed in this repository during the current implementation:
 ```text
 npm run typecheck  PASS
 npm run lint       PASS
-npm test           PASS — 3 files, 9 tests
+npm test           PASS — 4 files, 12 tests
 npm run build      PASS — Next.js 16.2.10 production build; all app/API routes generated
 ```
 

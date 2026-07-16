@@ -1,9 +1,11 @@
 import { createClient } from "@supabase/supabase-js";
 import { assets, audit, company, ecms, evidence, monthly } from "../lib/demo-data";
+import { getSupabasePublicConfig, getSupabaseServiceRoleKey } from "../lib/supabase/config";
 
-const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!url || !serviceRole) throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY; names only, no secret values are printed.");
+const config = getSupabasePublicConfig();
+const url = config.url;
+const serviceRole = getSupabaseServiceRoleKey();
+if (!url || !serviceRole || config.invalidUrl) throw new Error("Missing or invalid Supabase configuration; names only, no secret values are printed.");
 
 const supabase = createClient(url, serviceRole, { auth: { autoRefreshToken: false, persistSession: false } });
 const organizationId = "00000000-0000-0000-0000-000000000001";

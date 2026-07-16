@@ -27,7 +27,7 @@ export type WorkspaceSnapshot = {
 
 const demoSnapshot: WorkspaceSnapshot = { source: "demo", company, audit: demoAudit, monthly: demoMonthly, assets: demoAssets, ecms: demoEcms, evidence: demoEvidence, endUses: demoEndUses, overviewMetrics, solarScenario: { code: "SCENARIO-01", name: "Rooftop PV · 180 kWp planning scenario", inputs: { roofArea: 2600, exclusions: 380, moduleW: 540 }, outputs: { capacityKw: 461 }, assumptions: ["Planning values only", "Structural and DISCOM validation pending"] }, emissions: demoEmissions, auditEvents: demoAuditEvents };
 
-const emptySnapshot: WorkspaceSnapshot = { source: "supabase", company: null, audit: null, monthly: [], assets: [], ecms: [], evidence: [], endUses: [], overviewMetrics: null, solarScenario: null, emissions: { scope1: 0, scope2: 0 }, auditEvents: [] };
+const emptySnapshot: WorkspaceSnapshot = { source: "supabase", company: null, audit: null, monthly: [], assets: [], ecms: [], evidence: [], endUses: [], overviewMetrics: null, solarScenario: null, emissions: { scope1: 0, scope2: 0 }, auditEvents: [], configurationError: "Supabase data is not configured or the organization has no records." };
 
 function metricsFor(rows: MonthlyPoint[]) {
   const electricity = rows.reduce((sum, row) => sum + row.electricity, 0);
@@ -85,7 +85,7 @@ function mapEvidence(row: Record<string, unknown>): (typeof demoEvidence)[number
 
 export async function getWorkspaceSnapshot(): Promise<WorkspaceSnapshot> {
   if (getDataMode() !== "supabase") return demoSnapshot;
-  if (!isSupabaseConfigured()) throw new Error("SUPABASE_CONFIGURATION_MISSING");
+  if (!isSupabaseConfigured()) return emptySnapshot;
   const context = await getAuthContext();
   if (!context.user || !context.memberships[0]) return emptySnapshot;
   const organizationId = context.memberships[0].organization_id;

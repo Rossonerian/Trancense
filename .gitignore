@@ -18,3 +18,4 @@ coverage/
 secrets/
 tmp/
 uploads/
+supabase/.temp/

@@ -1,12 +1,20 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, CircleAlert, ClipboardCheck, Plus } from "lucide-react";
-import { annualElectricity, annualSec, audit, completenessAlerts, ecms, endUses, monthly, overviewMetrics, totalEcmSavings } from "@/lib/demo-data";
+import { completenessAlerts, endUses } from "@/lib/demo-data";
+import { getWorkspaceSnapshot } from "@/lib/data-access";
+import { specificEnergyConsumption } from "@/lib/calculations";
 import { CardHeader, ConfidencePill, MetricCard, PageHeader, StatusPill } from "@/components/ui";
 import { EnergyTrendChart } from "@/components/energy-chart";
 import { RankingChart } from "@/components/ranking-chart";
 import { Donut } from "@/components/donut";
 
-export default function OverviewPage() {
+export default async function OverviewPage() {
+  const snapshot = await getWorkspaceSnapshot();
+  const { audit, ecms, monthly, overviewMetrics } = snapshot;
+  const annualElectricity = monthly.reduce((sum, item) => sum + item.electricity, 0);
+  const totalProduction = monthly.reduce((sum, item) => sum + item.production, 0);
+  const annualSec = specificEnergyConsumption(annualElectricity, totalProduction);
+  const totalEcmSavings = ecms.reduce((sum, item) => sum + item.costSavings, 0);
   const maxEndUse = Math.max(...endUses.map((item) => item.value));
   return <div className="content"><PageHeader eyebrow="Portfolio / Pune Plant" title="Good morning, Ananya." description="A grounded view of where energy is moving, what is ready for review, and which decisions have the strongest evidence." actions={<><Link className="btn" href="/data"><Plus className="svg-icon" /> Add evidence</Link><Link className="btn primary" href="/reports"><ClipboardCheck className="svg-icon" /> Review report</Link></>} />
     <div className="grid metrics"><MetricCard label="Annual energy" value={overviewMetrics.annualEnergy.display} detail={`${(annualElectricity/1000).toFixed(0)} MWh electricity`} provenance={overviewMetrics.annualEnergy.provenance} /><MetricCard label="Annual energy cost" value={overviewMetrics.annualCost.display} detail="₹8.35 / kWh effective tariff" tone="inverted" provenance={overviewMetrics.annualCost.provenance} /><MetricCard label="Scope 1 + 2 emissions" value={overviewMetrics.emissions.display} detail="0.708 tCO₂e / MWh grid factor" provenance={overviewMetrics.emissions.provenance} /><MetricCard label="Renewable share" value={overviewMetrics.renewable.display} detail="On-site PV · measured output" provenance={overviewMetrics.renewable.provenance} /></div>

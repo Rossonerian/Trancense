@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
+import { getHealthStatus } from "@/lib/health";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
   description: "Evidence-led energy audit and engineering decision support for Indian facilities.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body><AppShell>{children}</AppShell></body></html>;
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const health = await getHealthStatus();
+  return <html lang="en"><body><AppShell dataStatus={{ label: health.dataLabel, detail: health.status === "ok" ? health.dataLabel === "Supabase Data" ? "Persistent workspace" : "Deterministic seeded workspace" : "Supabase unavailable · using fallback" }}>{children}</AppShell></body></html>;
 }

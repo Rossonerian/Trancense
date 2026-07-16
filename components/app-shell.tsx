@@ -18,7 +18,7 @@ const nav = [
   { href: "/assistant", label: "Grounded assistant", icon: Bot },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, dataStatus }: { children: React.ReactNode; dataStatus: { label: string; detail: string } }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   return <div className="app-shell">
@@ -28,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <div className="nav-section"><div className="nav-label">Workspace</div><div className="nav-links">{nav.map((item) => { const Icon = item.icon; const active = item.href === "/overview" ? pathname === "/" || pathname === "/overview" : pathname.startsWith(item.href); return <Link onClick={() => setOpen(false)} className={`nav-link ${active ? "active" : ""}`} href={item.href} key={item.href}><Icon /><span>{item.label}</span></Link>; })}</div></div>
         <div className="nav-section"><div className="nav-label">Governance</div><div className="nav-links"><Link className={`nav-link ${pathname.startsWith("/settings") ? "active" : ""}`} href="/settings"><Settings2 /><span>Settings & controls</span></Link></div></div>
       </nav>
-      <div className="sidebar-footer"><div className="demo-badge">Demo data</div><p>Frictionless access · FY25–26<br />Pune Plant, Maharashtra</p></div>
+      <div className="sidebar-footer"><div className="demo-badge">{dataStatus.label}</div><p>{dataStatus.detail}<br />FY25–26 · Pune Plant</p></div>
     </aside>
     <div className="main-shell">
       <header className="topbar"><div className="crumb"><button className="top-icon mobile-menu" aria-label="Open navigation" onClick={() => setOpen(!open)}><Menu /></button><span className="hide-mobile">Workspace /</span><strong>{pathname.startsWith("/audits") ? "Audit workspace" : pathname === "/" || pathname === "/overview" ? "Portfolio overview" : pathname.slice(1).replaceAll("-", " ")}</strong></div><div className="top-actions"><button className="top-icon" aria-label="Search"><Search /></button><button className="top-icon" aria-label="Notifications"><Bell /><span className="dot" /></button><div className="user-chip"><div className="avatar">AR</div><span className="hide-mobile">Ananya Rao</span><ChevronDown className="hide-mobile svg-icon" /></div></div></header>

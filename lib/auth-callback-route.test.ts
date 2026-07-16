@@ -6,11 +6,12 @@ const mocks = vi.hoisted(() => ({
   getUser: vi.fn(),
   from: vi.fn(),
   getSupabaseServerClient: vi.fn(),
+  createSupabaseCallbackClient: vi.fn(),
   getSupabaseAdmin: vi.fn(),
   isSupabaseConfigured: vi.fn(),
 }));
 
-vi.mock("@/lib/supabase/server", () => ({ getSupabaseServerClient: mocks.getSupabaseServerClient }));
+vi.mock("@/lib/supabase/callback", () => ({ createSupabaseCallbackClient: mocks.createSupabaseCallbackClient }));
 vi.mock("@/lib/supabase-admin", () => ({ getSupabaseAdmin: mocks.getSupabaseAdmin }));
 vi.mock("@/lib/runtime-config", () => ({ isSupabaseConfigured: mocks.isSupabaseConfigured }));
 
@@ -21,7 +22,7 @@ describe("Supabase auth callback", () => {
     vi.clearAllMocks();
     mocks.isSupabaseConfigured.mockReturnValue(true);
     mocks.getSupabaseAdmin.mockReturnValue(null);
-    mocks.getSupabaseServerClient.mockResolvedValue({ auth: { exchangeCodeForSession: mocks.exchangeCodeForSession, getUser: mocks.getUser }, from: mocks.from });
+    mocks.createSupabaseCallbackClient.mockReturnValue({ auth: { exchangeCodeForSession: mocks.exchangeCodeForSession, getUser: mocks.getUser }, from: mocks.from });
     mocks.from.mockImplementation((table: string) => {
       const result = table === "profiles" ? { onboarding_completed: false } : null;
       const chain = { eq: () => chain, limit: () => chain, maybeSingle: async () => ({ data: result, error: null }) };
@@ -56,5 +57,15 @@ describe("Supabase auth callback", () => {
     });
     const response = await GET(new NextRequest("https://trancense.vercel.app/auth/callback?code=existing-user-code"));
     expect(response.headers.get("location")).toBe("https://trancense.vercel.app/overview?confirmed=1");
+  });
+
+  it("copies SSR cookies onto the redirect response after the exchange", async () => {
+    mocks.createSupabaseCallbackClient.mockImplementation((_request: NextRequest, response: Response) => {
+      (response as Response & { cookies?: { set: (name: string, value: string) => void } }).cookies?.set("sb-test-session", "opaque-session");
+      return { auth: { exchangeCodeForSession: mocks.exchangeCodeForSession, getUser: mocks.getUser }, from: mocks.from };
+    });
+    mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
+    const response = await GET(new NextRequest("https://trancense.vercel.app/auth/callback?code=cookie-code"));
+    expect(response.cookies.get("sb-test-session")?.value).toBe("opaque-session");
   });
 });

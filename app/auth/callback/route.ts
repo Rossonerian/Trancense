@@ -2,16 +2,26 @@ import { NextResponse, type NextRequest } from "next/server";
 import { getAuthRecoveryReason } from "@/lib/auth-recovery";
 import { getSafeInternalPath, getTrustedAppOrigin } from "@/lib/app-origin";
 import { isSupabaseConfigured } from "@/lib/runtime-config";
-import { getSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseCallbackClient } from "@/lib/supabase/callback";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
+
+function callbackErrorCode(error: unknown) {
+  if (error && typeof error === "object" && "code" in error && typeof error.code === "string") return error.code;
+  return "unknown";
+}
 
 export async function GET(request: NextRequest) {
   const origin = getTrustedAppOrigin({ requestOrigin: request.nextUrl.origin });
-  const redirect = (path: string) => NextResponse.redirect(new URL(getSafeInternalPath(path), origin));
+  const sessionResponse = NextResponse.next({ request });
+  const withSessionCookies = (target: NextResponse) => {
+    sessionResponse.cookies.getAll().forEach((cookie) => target.cookies.set(cookie));
+    return target;
+  };
+  const redirect = (path: string) => withSessionCookies(NextResponse.redirect(new URL(getSafeInternalPath(path), origin)));
   const recovery = (reason: string) => {
     const url = new URL("/auth/recovery", origin);
     url.searchParams.set("reason", reason);
-    return NextResponse.redirect(url);
+    return withSessionCookies(NextResponse.redirect(url));
   };
 
   const suppliedError = getAuthRecoveryReason({
@@ -26,12 +36,18 @@ export async function GET(request: NextRequest) {
   if (!isSupabaseConfigured()) return recovery("configuration");
 
   try {
-    const supabase = await getSupabaseServerClient();
+    const supabase = createSupabaseCallbackClient(request, sessionResponse);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (error) return recovery(getAuthRecoveryReason({ error: error.message, errorCode: error.code }) ?? "exchange_failed");
+    if (error) {
+      console.error("[trancense-auth-callback] exchange failed", { stage: "exchange", code: callbackErrorCode(error) });
+      return recovery(getAuthRecoveryReason({ error: error.message, errorCode: error.code }) ?? "exchange_failed");
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return recovery("exchange_failed");
+    if (!user) {
+      console.error("[trancense-auth-callback] user missing after exchange", { stage: "get_user" });
+      return recovery("exchange_failed");
+    }
 
     const admin = getSupabaseAdmin();
     if (admin) {
@@ -44,7 +60,10 @@ export async function GET(request: NextRequest) {
         ...(metadata.country ? { country: String(metadata.country).trim() } : {}),
         ...(metadata.phone ? { phone: String(metadata.phone).trim() } : {}),
       }, { onConflict: "id" });
-      if (profileUpsertError) return recovery("exchange_failed");
+      if (profileUpsertError) {
+        console.error("[trancense-auth-callback] profile persistence failed", { stage: "profile_upsert", code: callbackErrorCode(profileUpsertError) });
+        return recovery("exchange_failed");
+      }
       const { data: invited } = await admin.from("organization_memberships").select("id").eq("user_id", user.id).eq("status", "invited").order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (invited) await admin.from("organization_memberships").update({ status: "active" }).eq("id", invited.id);
     }
@@ -53,7 +72,10 @@ export async function GET(request: NextRequest) {
       supabase.from("profiles").select("onboarding_completed").eq("id", user.id).maybeSingle(),
       supabase.from("organization_memberships").select("id").eq("user_id", user.id).eq("status", "active").limit(1).maybeSingle(),
     ]);
-    if (profileError || membershipError) return recovery("exchange_failed");
+    if (profileError || membershipError) {
+      console.error("[trancense-auth-callback] workspace lookup failed", { stage: "workspace_lookup", profileCode: callbackErrorCode(profileError), membershipCode: callbackErrorCode(membershipError) });
+      return recovery("exchange_failed");
+    }
     const requestedNext = getSafeInternalPath(request.nextUrl.searchParams.get("next"), "");
     const safeNext = requestedNext === "/login" || requestedNext === "/overview" || requestedNext === "/onboarding" ? requestedNext : "";
     return redirect(profile?.onboarding_completed && membership ? safeNext || "/overview?confirmed=1" : "/onboarding");

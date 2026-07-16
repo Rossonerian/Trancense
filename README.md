@@ -212,7 +212,7 @@ npm test           PASS — 12 files, 32 tests
 npm run build      PASS — Next.js 16.2.10 production build; all app/API routes generated
 ```
 
-Migration application against a live Supabase project, account signup/email delivery, Vercel deployment, and Production refresh persistence require account-side credentials and were not claimed as locally verified in this environment. Run `supabase db push`, `npm run db:seed -- USER_UUID`, the auth flow, and the Vercel checklist above against the intended project.
+The four repository migrations were applied to the Supabase project configured by the local environment during the current implementation run. The database schema probe returned the expected core tables. Account signup/email delivery, a fresh Google consent flow, Vercel deployment completion, and Production refresh persistence still require an interactive tester account and were not claimed as verified here. Run `npm run db:seed -- USER_UUID` only for an explicit demo tenant, then complete the auth flow and Vercel checklist above.
 
 ## Security and free-tier limitations
 

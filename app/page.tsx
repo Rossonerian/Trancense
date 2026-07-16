@@ -10,7 +10,7 @@ export default async function Home({ searchParams }: HomeProps) {
   const params = searchParams ? await searchParams : {};
   const first = (value: string | string[] | undefined) => Array.isArray(value) ? value[0] : value;
   const reason = getAuthRecoveryReason({ error: first(params.error), errorCode: first(params.error_code), description: first(params.error_description) });
-  if (reason) redirect(`/auth/recovery?reason=${reason}`);
+  if (reason) redirect("/login?error=oauth");
   if (getDataMode() === "demo") redirect(resolveRootDestination({ dataMode: "demo", authenticated: false, hasProfile: false, hasOrganization: false }));
   if (!isSupabaseConfigured()) redirect("/login?error=configuration");
   const context = await getSafeAuthContext();

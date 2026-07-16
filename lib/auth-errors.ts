@@ -1,6 +1,6 @@
 export function authErrorMessage(value: unknown, fallback: string) {
   const message = value instanceof Error ? value.message.toLowerCase() : String(value ?? "").toLowerCase();
-  if (message.includes("email not confirmed")) return "Please confirm your email before signing in. Request a new confirmation email if needed.";
+  if (message.includes("email not confirmed")) return "The email or password is incorrect.";
   if (message.includes("invalid login credentials") || message.includes("invalid credentials")) return "The email or password is incorrect.";
   if (message.includes("already registered") || message.includes("already exists")) return "An account with this email already exists. Sign in or reset your password.";
   if (message.includes("password") && (message.includes("weak") || message.includes("short") || message.includes("at least"))) return "Choose a password with at least 8 characters.";

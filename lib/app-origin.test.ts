@@ -30,7 +30,7 @@ describe("trusted application origin", () => {
 describe("safe internal redirects", () => {
   it("keeps approved local paths and rejects external destinations", () => {
     expect(getSafeInternalPath("/onboarding")).toBe("/onboarding");
-    expect(getSafeInternalPath("/login?confirmed=1")).toBe("/login?confirmed=1");
+    expect(getSafeInternalPath("/login?next=/overview")).toBe("/login?next=/overview");
     expect(getSafeInternalPath("//evil.example/login")).toBe("/overview");
     expect(getSafeInternalPath("https://evil.example/login")).toBe("/overview");
     expect(getSafeInternalPath("/\\\\evil.example")).toBe("/overview");

@@ -18,9 +18,9 @@ export async function GET(request: NextRequest) {
     return target;
   };
   const redirect = (path: string) => withSessionCookies(NextResponse.redirect(new URL(getSafeInternalPath(path), origin)));
-  const recovery = (reason: string) => {
-    const url = new URL("/auth/recovery", origin);
-    url.searchParams.set("reason", reason);
+  const failure = (_reason: string) => {
+    const url = new URL("/login", origin);
+    url.searchParams.set("error", "oauth");
     return withSessionCookies(NextResponse.redirect(url));
   };
 
@@ -29,24 +29,24 @@ export async function GET(request: NextRequest) {
     errorCode: request.nextUrl.searchParams.get("error_code"),
     description: request.nextUrl.searchParams.get("error_description"),
   });
-  if (suppliedError) return recovery(suppliedError);
+  if (suppliedError) return failure(suppliedError);
 
   const code = request.nextUrl.searchParams.get("code");
-  if (!code) return recovery("missing_code");
-  if (!isSupabaseConfigured()) return recovery("configuration");
+  if (!code) return failure("missing_code");
+  if (!isSupabaseConfigured()) return failure("configuration");
 
   try {
     const supabase = createSupabaseCallbackClient(request, sessionResponse);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (error) {
       console.error("[trancense-auth-callback] exchange failed", { stage: "exchange", code: callbackErrorCode(error) });
-      return recovery(getAuthRecoveryReason({ error: error.message, errorCode: error.code }) ?? "exchange_failed");
+      return failure(getAuthRecoveryReason({ error: error.message, errorCode: error.code }) ?? "exchange_failed");
     }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
       console.error("[trancense-auth-callback] user missing after exchange", { stage: "get_user" });
-      return recovery("exchange_failed");
+      return failure("exchange_failed");
     }
 
     const admin = getSupabaseAdmin();
@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
       }, { onConflict: "id" });
       if (profileUpsertError) {
         console.error("[trancense-auth-callback] profile persistence failed", { stage: "profile_upsert", code: callbackErrorCode(profileUpsertError) });
-        return recovery("exchange_failed");
+        return failure("exchange_failed");
       }
       const { data: invited } = await admin.from("organization_memberships").select("id").eq("user_id", user.id).eq("status", "invited").order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (invited) await admin.from("organization_memberships").update({ status: "active" }).eq("id", invited.id);
@@ -74,12 +74,12 @@ export async function GET(request: NextRequest) {
     ]);
     if (profileError || membershipError) {
       console.error("[trancense-auth-callback] workspace lookup failed", { stage: "workspace_lookup", profileCode: callbackErrorCode(profileError), membershipCode: callbackErrorCode(membershipError) });
-      return recovery("exchange_failed");
+      return failure("exchange_failed");
     }
     const requestedNext = getSafeInternalPath(request.nextUrl.searchParams.get("next"), "");
     const safeNext = requestedNext === "/login" || requestedNext === "/overview" || requestedNext === "/onboarding" ? requestedNext : "";
-    return redirect(profile?.onboarding_completed && membership ? safeNext || "/overview?confirmed=1" : "/onboarding");
+    return redirect(profile?.onboarding_completed && membership ? safeNext || "/overview" : "/onboarding");
   } catch {
-    return recovery("exchange_failed");
+    return failure("exchange_failed");
   }
 }

@@ -72,7 +72,7 @@ GEMINI_MODEL=
 
 1. Open the Supabase project represented by the URL in `.env.local` and **Connect** / **API** in the dashboard. Copy the Project URL, public publishable/anon key, server-only secret/service-role key, transaction pooler URL, and direct database URL into `.env.local` without committing the file. The resolver uses those existing local names and the Vercel integration names documented above; it does not hard-code a project ID. `/api/health` reports only the resolved hostname so operators can detect a project mismatch.
 2. Configure Auth → URL Configuration. For Production use Site URL `https://trancense.vercel.app` and redirect URLs `https://trancense.vercel.app/auth/callback` and `https://trancense.vercel.app/reset-password`. For local development use Site URL `http://localhost:3000` and redirect URLs `http://localhost:3000/auth/callback` and `http://localhost:3000/reset-password`.
-3. Enable Email provider/password sign-in. For a real tester, configure custom SMTP; the hosted default email service is best-effort and rate-limited. Enable email confirmation for production and keep it disabled only for a controlled local test project.
+3. Enable Email provider/password sign-in. Email confirmation is intentionally disabled for this MVP: successful email signup creates an immediate session and routes directly to onboarding. For a real tester, configure custom SMTP only if other Supabase email features are enabled.
 4. Install and authenticate the Supabase CLI, then apply migrations:
 
    ```bash
@@ -103,7 +103,7 @@ GEMINI_MODEL=
 
 ### Auth and onboarding
 
-Signup collects full name, organization, role, country, and optional phone. The database trigger creates only the profile; onboarding creates the organization, an `Executive/Viewer` membership, and the first site from the user’s submitted values. Login, logout, persistent secure-cookie sessions, email confirmation, Google OAuth, resend through Supabase Auth, password reset, callback handling, protected routes, loading states, and validation/error states are implemented.
+Signup collects full name, organization, role, country, and optional phone. With Supabase email confirmation disabled, email/password signup creates an immediate session and routes directly to onboarding. The database trigger creates only the profile; onboarding creates the organization, an `Executive/Viewer` membership, and the first site from the user’s submitted values. Login, logout, persistent secure-cookie sessions, Google OAuth, password reset, callback handling, protected routes, loading states, and validation/error states are implemented.
 
 The `/settings` administration panel is visible only to an Admin membership. Admins can invite testers, change roles, suspend/remove memberships, and inspect tenant audit events. Reviewers can approve technical outputs; viewers can read permitted records but cannot mutate them. These checks are repeated in route handlers and RLS, not just in the UI.
 
@@ -111,12 +111,12 @@ Supabase’s official SSR guidance recommends separate browser/server clients, a
 
 Confirmation and recovery behavior:
 
-- Signup sends `emailRedirectTo` to `/auth/callback` on the trusted application origin. The callback exchanges the Supabase code, preserves secure cookies, and sends new users to `/onboarding` or established users to `/overview`.
-- Confirmation links are one-time use. Expired, consumed, invalid, or incomplete links go to `/auth/recovery` with a safe explanation and actions to return to login/signup or request a fresh confirmation email.
+- Email signup does not wait for confirmation. It uses the returned Supabase session, with a safe password sign-in fallback if Supabase returns a user without a session, and sends the user directly to `/onboarding`.
+- Google OAuth uses the trusted application origin and `/auth/callback`. The callback exchanges the code once, preserves secure cookies, and sends new users to `/onboarding` or established users to `/overview`. Failed OAuth callbacks return to login with a safe error; they are not treated as email confirmation flows.
 - Password-reset emails use the trusted origin plus `/reset-password`. The reset page validates the recovery session before enabling the password form and explains expired links without exposing tokens.
 - Tester invitations use the same trusted production callback origin and never trust an arbitrary request `Origin` header.
 
-After changing `NEXT_PUBLIC_APP_URL` or any Vercel environment variable, redeploy the application. Existing deployments do not receive changed environment values automatically. Test signup, email confirmation, login, logout, resend confirmation, and password reset with a newly generated link; an old or already-used link cannot be reused.
+After changing `NEXT_PUBLIC_APP_URL` or any Vercel environment variable, redeploy the application. Existing deployments do not receive changed environment values automatically. Test email signup, direct onboarding, login, logout, Google OAuth, and password reset.
 
 Google OAuth is enabled in Supabase Auth → Providers. The login and signup buttons use the trusted application origin and `/auth/callback`; Google client credentials remain in Supabase, never in the browser. Configure the callback URL in Supabase and use a fresh auth session for each test.
 
@@ -132,7 +132,7 @@ Production Google OAuth troubleshooting:
 
 With `DATA_MODE=supabase` and a configured account:
 
-1. Sign up, confirm the email, and complete `/onboarding`.
+1. Sign up with email/password and complete `/onboarding` immediately.
 2. Create an audit from `/audits` after the first site exists.
 3. Import utility bills or asset CSVs from `/data`; formula-like cells are rejected, rows are recorded in import batches, and committed data is tenant-scoped.
 4. Use the APIs or authorized forms to create sites, audits, assets, bills, ECMs, and solar scenarios. Every mutation validates input, checks role, revalidates through the authenticated Supabase client, and appends an audit event.
@@ -175,7 +175,7 @@ Pitch checklist:
 
 - Apply the latest migration and seed only the intended development/demo project.
 - Create the first production Admin with `grant:admin` or a controlled SQL/server-side operation.
-- Sign up a tester, confirm email, complete onboarding, and invite a Viewer and Reviewer.
+- Sign up a tester, complete onboarding, and invite a Viewer and Reviewer.
 - Walk overview → audit → energy balance → analytics → ECM weights → solar → assistant → report preview/print.
 - Refresh in Production and confirm records remain after the Supabase-backed reload.
 - Keep `AI_PROVIDER=demo` if provider quotas could affect the pitch; deterministic grounding remains available.

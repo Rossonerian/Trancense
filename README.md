@@ -14,7 +14,7 @@ The product is decision-support software. It does not provide BEE certification,
 - PostgreSQL schema and RLS are versioned under [`supabase/migrations`](./supabase/migrations). The service-role client is limited to trusted seed, onboarding, and invitation operations and is never imported by browser code.
 - Authoritative numerical outputs remain in [`lib/calculations.ts`](./lib/calculations.ts). The assistant can explain authorized records but cannot create energy, financial, carbon, tariff, compliance, or savings values.
 
-Routes include `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/onboarding`, `/overview`, `/audits`, `/audits/[id]`, `/data`, `/assets`, `/energy-balance`, `/analytics`, `/ecms`, `/solar`, `/reports`, `/assistant`, `/settings`, and `/api/health`.
+Routes include `/login`, `/signup`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/auth/recovery`, `/onboarding`, `/overview`, `/audits`, `/audits/[id]`, `/data`, `/assets`, `/energy-balance`, `/analytics`, `/ecms`, `/solar`, `/reports`, `/assistant`, `/settings`, and `/api/health`.
 
 ## Local setup
 
@@ -61,10 +61,12 @@ GEMINI_MODEL=
 
 `DATA_MODE=supabase` is the production setting. `DATA_MODE=demo` is an explicit local development mode only. The resolver prefers the Vercel integration names `NEXT_PUBLIC_STORAGE_SUPABASE_URL`, `NEXT_PUBLIC_STORAGE_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_STORAGE_SUPABASE_PUBLISHABLE_KEY`, and `STORAGE_SUPABASE_SERVICE_ROLE_KEY`; the original `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` names remain supported as local aliases. Only the `NEXT_PUBLIC_*` URL and publishable/anon key are browser-safe. The service-role key is server-only and is never imported by browser code. The URL must be the Supabase project root, such as `https://YOUR_PROJECT_REF.supabase.co`; `/rest/v1`, `/auth/v1`, `/storage/v1`, dashboard, project, query-string, and malformed URLs are rejected. The Supabase SDK constructs `/auth/v1/signup` itself, so the application never appends `/auth/v1` to the configured URL. `DATABASE_URL` should be a transaction-pooler connection for serverless tooling and `DIRECT_URL` the direct connection for migrations/admin work. The current application uses the Supabase Data API, so neither URL is read by the browser.
 
+`NEXT_PUBLIC_APP_URL` is the trusted application origin used in Supabase email links. Set it to `https://trancense.vercel.app` in Vercel Production and to `http://localhost:3000` for local development. The resolver accepts the production origin, local development origin, and explicitly configured Vercel preview origins; it rejects arbitrary external hosts, query strings, fragments, and path-bearing origins. If the variable is absent in a server request, the resolver can use the current request origin only when it is trusted, and production never falls back to localhost.
+
 ## Supabase project and migrations
 
 1. Create a Supabase project and open **Connect** / **API** in the dashboard. Copy the Project URL, publishable/anon key, service-role key, transaction pooler URL, and direct database URL into `.env.local` without committing the file. In Vercel, the Supabase integration may inject the same values under the `NEXT_PUBLIC_STORAGE_SUPABASE_*` / `STORAGE_SUPABASE_SERVICE_ROLE_KEY` names documented above.
-2. Configure Auth → URL Configuration. Set the Site URL to the local or deployed origin and add `${ORIGIN}/auth/callback` and `${ORIGIN}/reset-password` as redirect URLs.
+2. Configure Auth → URL Configuration. For Production use Site URL `https://trancense.vercel.app` and redirect URLs `https://trancense.vercel.app/auth/callback` and `https://trancense.vercel.app/reset-password`. For local development use Site URL `http://localhost:3000` and redirect URLs `http://localhost:3000/auth/callback` and `http://localhost:3000/reset-password`.
 3. Enable Email provider/password sign-in. For a real tester, configure custom SMTP; the hosted default email service is best-effort and rate-limited. Enable email confirmation for production and keep it disabled only for a controlled local test project.
 4. Install and authenticate the Supabase CLI, then apply migrations:
 
@@ -101,6 +103,15 @@ Signup collects full name, organization, role, country, and optional phone. A da
 The `/settings` administration panel is visible only to an Admin membership. Admins can invite testers, change roles, suspend/remove memberships, and inspect tenant audit events. Reviewers can approve technical outputs; viewers can read permitted records but cannot mutate them. These checks are repeated in route handlers and RLS, not just in the UI.
 
 Supabase’s official SSR guidance recommends separate browser/server clients, a proxy for cookie refresh, and verified claims for route protection: [Creating a Supabase client for SSR](https://supabase.com/docs/guides/auth/server-side/creating-a-client). Supabase’s official RLS guidance requires RLS on exposed public tables and warns that service keys bypass RLS: [Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security).
+
+Confirmation and recovery behavior:
+
+- Signup sends `emailRedirectTo` to `/auth/callback` on the trusted application origin. The callback exchanges the Supabase code, preserves secure cookies, and sends new users to `/onboarding` or established users to `/overview`.
+- Confirmation links are one-time use. Expired, consumed, invalid, or incomplete links go to `/auth/recovery` with a safe explanation and actions to return to login/signup or request a fresh confirmation email.
+- Password-reset emails use the trusted origin plus `/reset-password`. The reset page validates the recovery session before enabling the password form and explains expired links without exposing tokens.
+- Tester invitations use the same trusted production callback origin and never trust an arbitrary request `Origin` header.
+
+After changing `NEXT_PUBLIC_APP_URL` or any Vercel environment variable, redeploy the application. Existing deployments do not receive changed environment values automatically. Test signup, email confirmation, login, logout, resend confirmation, and password reset with a newly generated link; an old or already-used link cannot be reused.
 
 ## Real tester workflows
 
@@ -174,7 +185,7 @@ Executed in this repository during the current implementation:
 ```text
 npm run typecheck  PASS
 npm run lint       PASS
-npm test           PASS — 4 files, 12 tests
+npm test           PASS — 8 files, 22 tests
 npm run build      PASS — Next.js 16.2.10 production build; all app/API routes generated
 ```
 

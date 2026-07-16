@@ -4,7 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSupabasePublicConfig } from "./config";
 
-const publicPaths = new Set(["/login", "/signup", "/forgot-password", "/reset-password"]);
+const publicPaths = new Set(["/", "/login", "/signup", "/forgot-password", "/reset-password"]);
 
 function isPublicPath(pathname: string) {
   return publicPaths.has(pathname) || pathname.startsWith("/auth/") || pathname.startsWith("/api/health");

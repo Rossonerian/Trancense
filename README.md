@@ -154,7 +154,7 @@ npm run build
 npm run ai:verify-models
 ```
 
-The existing deterministic calculation suite passes 5 tests. A production-like `npm run start` smoke run should check `/overview`, every required page route, `/api/health`, and a POST to `/api/assistant` with no keys; the no-key response must be deterministic. Supabase refresh persistence requires account-side setup and a configured project, so it is documented as a manual deployment check rather than claimed as locally verified without credentials.
+The final local verification run passed `npm run typecheck`, `npm run lint`, `npm test` with 7 tests, and `npm run build`. A production-like `npm run start` smoke run returned 200 for every required page route, returned 200 from `/api/health` in Demo Data mode, and returned a cited deterministic response from `/api/assistant` with no provider keys. Supabase refresh persistence requires account-side setup and a configured project, so it is documented as a manual deployment check rather than claimed as locally verified without credentials.
 
 ## Security and known limitations
 

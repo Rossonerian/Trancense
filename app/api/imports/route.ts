@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { apiError } from "@/lib/api-helpers";
-import { canWrite, requireWorkspaceContext } from "@/lib/auth";
+import { requireWorkspaceContext } from "@/lib/auth";
 import { getSupabaseServerClient } from "@/lib/supabase/server";
 
 const schema = z.object({ kind: z.enum(["utility_bills", "assets"]), filename: z.string().trim().max(255).optional(), rows: z.array(z.record(z.string(), z.string())).min(1).max(5000) });
@@ -11,7 +11,6 @@ const numberValue = (value: string | undefined) => { const parsed = Number(value
 export async function POST(request: Request) {
   try {
     const context = await requireWorkspaceContext();
-    if (!canWrite(context.membership.role)) throw new Error("FORBIDDEN");
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Import rows are invalid or empty." }, { status: 400 });
     if (parsed.data.rows.some((row) => Object.values(row).some(unsafe))) return NextResponse.json({ error: "Formula-like CSV cells are blocked." }, { status: 400 });

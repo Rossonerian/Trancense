@@ -3,9 +3,9 @@ import "server-only";
 import type { User } from "@supabase/supabase-js";
 import { getDataMode, isSupabaseConfigured } from "./runtime-config";
 import { getSupabaseServerClient } from "./supabase/server";
-import { canManageMembers, canReview, canWrite, roles, type Role } from "./authorization";
+import { roles, type Role } from "./authorization";
 
-export { canManageMembers, canReview, canWrite, roles } from "./authorization";
+export { roles } from "./authorization";
 export type { Role } from "./authorization";
 
 export type WorkspaceMembership = {

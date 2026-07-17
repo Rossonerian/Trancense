@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthContext } from "@/lib/auth";
-import { canWrite } from "@/lib/authorization";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const onboardingSchema = z.object({
@@ -36,7 +35,7 @@ export async function POST(request: Request) {
       }
       const { error: membershipError } = await admin.from("organization_memberships").upsert({ organization_id: organizationId, user_id: context.user.id, role: "Executive/Viewer", status: "active" }, { onConflict: "organization_id,user_id" });
       if (membershipError) throw membershipError;
-    } else if (!site && (!context.role || !canWrite(context.role))) {
+    } else if (!site) {
       return NextResponse.json({ error: "Your organization has not assigned an active site yet. Contact an administrator." }, { status: 403 });
     }
     if (!site) {

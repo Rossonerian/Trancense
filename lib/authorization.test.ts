@@ -1,25 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { canManageMembers, canReview, canWrite } from "./authorization";
+import { readFileSync } from "node:fs";
+import { roles } from "./authorization";
 
 describe("tenant role capabilities", () => {
-  it("allows every active member to work with audit and analysis data", () => {
-    expect(canWrite("Executive/Viewer")).toBe(true);
-    expect(canWrite("Reviewer")).toBe(true);
-    expect(canWrite("Facility Manager")).toBe(true);
-    expect(canWrite("Energy Auditor")).toBe(true);
-    expect(canWrite("Admin")).toBe(true);
+  it("keeps roles as metadata rather than permission gates", () => {
+    expect(roles).toEqual(expect.arrayContaining(["Admin", "Energy Auditor", "Facility Manager", "Reviewer", "Executive/Viewer"]));
   });
 
-  it("keeps governance and membership administration restricted", () => {
-    expect(canReview("Executive/Viewer")).toBe(false);
-    expect(canManageMembers("Executive/Viewer")).toBe(false);
-    expect(canReview("Facility Manager")).toBe(false);
-    expect(canManageMembers("Reviewer")).toBe(false);
-    expect(canManageMembers("Admin")).toBe(true);
+  it("uses authenticated active membership for all workspace mutation policies", () => {
+    const migration = readFileSync(new URL("../supabase/migrations/20260721000000_membership_only_authorization.sql", import.meta.url), "utf8");
+    expect(migration).toContain("public.is_org_member");
+    expect(migration).not.toMatch(/(?:using|with check|create policy)[^\n]*has_org_role/);
+    expect(migration).toContain("to authenticated");
   });
 
-  it("separates audit editing from technical approval", () => {
-    expect(canReview("Facility Manager")).toBe(false);
-    expect(canReview("Reviewer")).toBe(true);
+  it("keeps RLS enabled in the schema migrations", () => {
+    const schema = readFileSync(new URL("../supabase/migrations/20260717000000_tester_ready_auth_workflows.sql", import.meta.url), "utf8");
+    expect(schema).toContain("alter table public.organization_memberships enable row level security");
+    expect(schema).toContain("alter table public.import_batches enable row level security");
   });
 });
